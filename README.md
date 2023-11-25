@@ -1,20 +1,20 @@
 # Las_processing
 The free simple program to load and plot las-file based on lasio library
 
-Installation
+# Installation
 Copy git to your computer and run Main.py
 
-Requirments packages:
+# Requirments packages:
     - PyQt5
     - PyQtWebEngine
     - lasio
     - plotly
 
 
-Usage
+# Usage
     Run Main.py
     Load las-file (menu tools or bar tools)
     Plot curves or save it
 
-Version
+# Version
     0.0.1
