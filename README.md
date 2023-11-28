@@ -1,5 +1,5 @@
 # Las_processing
-The free simple program to load and plot las-file based on lasio library
+The free simple program to load and plot las-file based on lasio library 
 
 # Installation
 Copy git to your computer and run Main.py
@@ -17,4 +17,4 @@ Copy git to your computer and run Main.py
     Plot curves or save it
 
 # Version
-    0.0.1
+    0.0.1 /Alpha-version/
