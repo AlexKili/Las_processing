@@ -1,14 +1,12 @@
 Version 0.0.2
     - Add panel with curves in las-file
     - Add plot tab in central widget
+    - Add progress bar into status bar
     - Process to load las put into thread
 
 Version 0.0.1
-    Interface change:
     - Add docker with las-files and folder with las-file
     - Add main panel in central widget
-
-    Engine change:
     - Add  classes to some widget
     - Make faster loading las-file
     - Fixed other small-things bugs
