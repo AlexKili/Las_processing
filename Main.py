@@ -241,7 +241,9 @@ class LasLoadingThread(QtCore.QThread):
     @QtCore.pyqtSlot(list)
     def run(self):
         try:
+            print('load las begin')
             self.las = lasio.read(self.parent.path_las_file)
+            print('end loading')
             self.state.emit(True)
         except:
             self.state.emit(False)
@@ -397,14 +399,16 @@ class MainWindow(QtWidgets.QMainWindow):
         # очищаем виджеты во вкладках
         self.tabWidget.text_header.clear()
         self.tabWidget.tableview_model.clear()
+        self.tabWidget.combo_box.clear()
         self.tabWidget.table.setModel(self.tabWidget.tableview_model)
         self.tabWidget.plot_widget.setHtml('<html><body>  </body></html>')
         
         # получаем данные о файле из выделенного элемента
         name_file = self.listWidget.dirModel.data(path)  # название файла
         file_path = self.listWidget.dirModel.filePath(path)  # полный путь к файлу
-        if str(file_path).endswith('.las'):
+        if str(file_path).lower().endswith('.las'):
             file_path = file_path.replace('/', '\\')
+            
             self.open_las_file(path_las_file=file_path)
         
         # Показать progress bar
@@ -449,7 +453,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         # попытка открыть las - файл, еслине получиться в строку состояние выведется сообщение
         self.path_las_file = path_las_file
-        lasloadThread = LasLoadingThread(parent=self)
+        lasloadThread = LasLoadingThread(parent = self)
         lasloadThread.start()
         lasloadThread.state.connect(self.state_reading)
         lasloadThread.result.connect(self.result_reading)
@@ -505,6 +509,8 @@ class MainWindow(QtWidgets.QMainWindow):
         """string - index of selected element from signal"""
         name_curve = list(self.dict_curves.keys())[string]
         unit = self.dict_curves[name_curve]
+        if name_curve not in self.las.df().columns:
+            return
         self.las.df()[name_curve]
         # create the plotly figure
         fig = Figure(Scatter(x=self.las.df()[name_curve], y=self.las.df().index))
