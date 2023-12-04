@@ -18,7 +18,7 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 import lasio
 
 # for import settings
-import configparser
+#import configparser
 
 # this need for plot_giscurve
 from plotly.graph_objects import Figure, Scatter
