@@ -16,6 +16,8 @@ import os
 from PyQt5 import QtCore, QtWidgets, QtGui
 
 import lasio
+import io
+import csv
 
 # for import settings
 #import configparser
@@ -112,30 +114,25 @@ class TabWidget(QtWidgets.QWidget):
         self.table = QtWidgets.QTableView() # создает экземпляр класса для отображения данных в виде таблицы
         self.tableview_model = QtGui.QStandardItemModel()  # создает табличную модель
         self.table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-        self.table.setAlternatingRowColors(True)
-        self.table.setSelectionBehavior(1) 
-        self.table.setTextElideMode(1)
-        self.table.resizeRowToContents(0)
+        self.table.setAlternatingRowColors(True)  # делает четные-нечетные строки разным цветом
+        self.table.setSelectionBehavior(1)  # задает режим выделения элементво в таблице
+        self.table.setTextElideMode(1)  # задает режим обрезки текста если он не помещается
+        self.table.resizeRowToContents(0)  # изменяет размер строк, чтобы все поместилось
         self.table.setSortingEnabled(False)  # запрещает сортировку элеметов в таблице
+        self.table.setCornerButtonEnabled(True)  # в левом углу можно выделить всю таблицу
+        ## создает событие для ctrl+С позволяющее скопировать таблицу
+        self.table.installEventFilter(self)
         
         self.tab_widget.addTab(self.table, 'Data_curves')  # добавляем вкладку 'Data_Curves' с виджетом table
-
         
-        # устанавливаем сигналы
-        self.tab_widget.tabBarClicked.connect(self.tab_select)
-        
+        self.tab_widget.tabBarClicked.connect(self.tab_select) # устанавливаем сигналы
         
         self.plotcurvewindow = QtWidgets.QWidget(self, QtCore.Qt.Window)
-        #self.plotcurvewindow.setWindowTitle("Отображение кривых ГИС")
-        #self.plotcurvewindow.resize(800,600)
-        #self.plotcurvewindow.setWindowModality(QtCore.Qt.WindowModal)
-        #self.plotcurvewindow.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
-
+        
         # создаем представление QWebEngineView и устанавливаем в него html код
         self.plot_widget = QtWebEngineWidgets.QWebEngineView()
         
         # создаем список элементов для выпадающего списка кривых для отображения 
-                    
         self.combo_box = QtWidgets.QComboBox(self) 
         self.combo_box.setGeometry(200, 150, 120, 30)
         
@@ -150,7 +147,29 @@ class TabWidget(QtWidgets.QWidget):
         self.tab_widget.addTab(self.plotcurvewindow, 'Viewer')
         #self.plotcurvewindow.show()
         
-        
+    def eventFilter(self, source, event):
+        if (event.type() == QtCore.QEvent.KeyPress and
+            event.matches(QtGui.QKeySequence.Copy)):
+            self.copySelection()
+            return True
+        return super(QtWidgets.QWidget, self).eventFilter(source, event)
+    
+    def copySelection(self):
+        selection = self.table.selectedIndexes()
+        if selection:
+            rows = sorted(index.row() for index in selection)
+            columns = sorted(index.column() for index in selection)
+            rowcount = rows[-1] - rows[0] + 1
+            colcount = columns[-1] - columns[0] + 1
+            table = [[''] * colcount for _ in range(rowcount)]
+            for index in selection:
+                row = index.row() - rows[0]
+                column = index.column() - columns[0]
+                table[row][column] = index.data()
+            stream = io.StringIO()
+            csv.writer(stream, delimiter=";").writerows(table)
+            QtWidgets.QApplication.clipboard().setText(stream.getvalue())
+    
     def tab_select(self, index):
         # It's for next update
         #print('INDEX:', index)
@@ -361,7 +380,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # БЛОК для создания виджета со списком кривых, прикрепляемого слева
         self.dockCurveslist = QtWidgets.QDockWidget("Curves in list", self)
         self.listCurveslist = QtWidgets.QTextEdit()  # загружаем класс FileSystemVi
-        self.dockCurveslist.setWidget(self.listCurveslist)  # устанавливаем его в бокову
+        self.dockCurveslist.setWidget(self.listCurveslist)  # устанавливаем его в боковую панель
         self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self.dockCurveslist)
         ## self.dockFilesystem.setFloating(False)
         ## установка сигналов
@@ -497,7 +516,8 @@ class MainWindow(QtWidgets.QMainWindow):
         elif 'DEPTH' in self.dict_curves:
             self.depth_unit = self.dict_curves['DEPTH']
             del self.dict_curves['DEPTH']
-        
+            
+        self.listCurveslist.setText('\n'.join(list(self.dict_curves.keys())))
         self.tabWidget.combo_box.addItems(list(self.dict_curves.keys()))
         self.tabWidget.combo_box.currentIndexChanged.connect(self.change_curve_on_tab)
         self.change_curve_on_tab(0)

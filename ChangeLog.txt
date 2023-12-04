@@ -1,3 +1,7 @@
+Version 0.0.3
+    - Add copy data in table to clipboard in csv format
+    - Fixed view loaded curves in left doслук panel
+
 Version 0.0.2
     - Add panel with curves in las-file
     - Add plot tab in central widget
