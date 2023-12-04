@@ -17,4 +17,4 @@ Copy git to your computer and run Main.py
     Plot curves or save it
 
 # Version
-    0.0.1
+    0.0.3
