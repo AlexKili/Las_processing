@@ -3,7 +3,7 @@
 """
 Main file of Las-loading module of big-project.
 It's cutting code and placement in one module to free Pet-project.
-Version 0.0.1
+Version 0.0.3
 
 Before using this script you will need doing next actions:
     1) install python into your system
