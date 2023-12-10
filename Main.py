@@ -62,7 +62,11 @@ class AddWellDialog(QtWidgets.QDialog):
         self.setWindowTitle('Add new well to project')
         self.vbox = QtWidgets.QVBoxLayout()
         
-        self.hbox_group = QtWidgets.QHBoxLayout()
+        self.name_well_group = QtWidgets.QHBoxLayout()
+        self.name_well_group.addWidget( QtWidgets.QText("Name well") )
+        self.name_well = QtWidgets.QLineEdit("Name well")
+        self.name_well_group.addWidet(self.name_well)
+        
         self.box_radiobut = QtWidgets.QGroupBox('Выбор задействованных слоев')
         self.vbox_radiobut = QtWidgets.QVBoxLayout()
         self.radio_1 = QtWidgets.QRadioButton('все слои проекта')
@@ -73,8 +77,7 @@ class AddWellDialog(QtWidgets.QDialog):
         self.vbox_radiobut.addWidget(self.radio_2)
         self.box_radiobut.setLayout(self.vbox_radiobut)
         
-        self.hbox_group.addWidget(self.box_radiobut)
-        self.vbox.addItem(self.hbox_group)
+        self.vbox.addItem(self.name_well_group)
         #self.vbox.addWidget(self.but_exit)
         self.setLayout(self.vbox)
 
