@@ -55,6 +55,30 @@ except ImportError as exception:
     from PyQt5 import QtWebEngineWidgets
 
 
+class AddWellDialog(QtWidgets.QDialog):
+    def __init__(self):
+        #super().__init__()
+        QtWidgets.QDialog.__init__(self)
+        self.setWindowTitle('Add new well to project')
+        self.vbox = QtWidgets.QVBoxLayout()
+        
+        self.hbox_group = QtWidgets.QHBoxLayout()
+        self.box_radiobut = QtWidgets.QGroupBox('Выбор задействованных слоев')
+        self.vbox_radiobut = QtWidgets.QVBoxLayout()
+        self.radio_1 = QtWidgets.QRadioButton('все слои проекта')
+        self.radio_2 = QtWidgets.QRadioButton('выбранный слой')
+        self.radio_2.setChecked(True)
+        self.select_mode = 1
+        self.vbox_radiobut.addWidget(self.radio_1)
+        self.vbox_radiobut.addWidget(self.radio_2)
+        self.box_radiobut.setLayout(self.vbox_radiobut)
+        
+        self.hbox_group.addWidget(self.box_radiobut)
+        self.vbox.addItem(self.hbox_group)
+        #self.vbox.addWidget(self.but_exit)
+        self.setLayout(self.vbox)
+
+
 class FileSystemView(QtWidgets.QWidget):
     """Класс создающий QtWidget для отображения файловой системы
     
@@ -322,6 +346,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # БЛОК для загрузки иконок 
         if self.icon_style == 'stylish':
+            iconAdd = self.style().standardIcon( QtWidgets.QStyle.SP_FileDialogNewFolder )
             iconOpen = QtGui.QIcon(os.path.dirname(__file__) + 'Main_app_icon.png')
             iconPlot = QtGui.QIcon(os.path.dirname(__file__) + '/icons/IconMenuBar/plot.png')
             iconConnect = QtGui.QIcon(os.path.dirname(__file__) + '/icons/IconMenuBar/connect_curves.png')
@@ -330,6 +355,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.setWindowIcon(main_icon_app)
             
         elif self.icon_style == 'standard':
+            iconAdd = self.style().standardIcon( QtWidgets.QStyle.SP_FileDialogNewFolder )
             iconOpen = self.style().standardIcon( QtWidgets.QStyle.SP_FileIcon )
             iconPlot = self.style().standardIcon( QtWidgets.QStyle.SP_DesktopIcon )
             iconConnect = self.style().standardIcon( QtWidgets.QStyle.SP_ToolBarHorizontalExtensionButton )
@@ -340,12 +366,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.menu_instr = self.menu.addMenu('Instruments') # adding Menu to form 
         self.menu_settings = self.menu.addMenu('Settings')
         
+        self.menu_instr_addwell = QtWidgets.QAction(iconAdd, 'Add new well')
         self.menu_instr_openfile = QtWidgets.QAction(iconOpen, 'Open las-file') # create Action to adding in Menu to Open directory
         self.menu_instr_plotcurve = QtWidgets.QAction(iconPlot, 'Plot curve')
         self.menu_instr_connectcurve = QtWidgets.QAction(iconConnect, 'Connect many las')
         self.menu_instr_exporttoexcell = QtWidgets.QAction(iconExport, 'Export to excell')
         
         ## Подблок для создания сигналов и триггеров
+        self.menu_instr_addwell.triggered.connect(self.add_new_well)
         self.menu_instr_openfile.triggered.connect(self.menu_file_path) # Connect pressing Button to function open_dir
         self.plotcurve = PlotCurveWindow(self)
         self.menu_instr_plotcurve.triggered.connect(self.plotcurve.plot_curve) 
@@ -361,6 +389,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # БЛОК cоздания панели ToolBar 
         self.fileToolBar = QtWidgets.QToolBar("File", self)
+        self.fileToolBar.addAction(self.menu_instr_addwell)
         self.fileToolBar.addAction(self.menu_instr_openfile)
         self.fileToolBar.addAction(self.menu_instr_plotcurve)
         self.fileToolBar.addAction(self.menu_instr_connectcurve)
@@ -387,8 +416,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.listWidget.tree.clicked.connect(self.docker_file_path)
         
         # БЛОК для создания центральной таблицы
+        centralWidget = QtWidgets.QMdiArea()
+        self.setCentralWidget(centralWidget)
         self.tabWidget = TabWidget()
-        self.setCentralWidget(self.tabWidget.tab_widget) # устанавливает центральный виджет
+        subWindow_TabWidget = centralWidget.addSubWindow(self.tabWidget.tab_widget)
+        subWindow_TabWidget.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        subWindow_TabWidget.show()
+        
         
         # БЛОК для создания progressBar 
         self.progressBar = QtWidgets.QProgressBar()
@@ -403,7 +437,11 @@ class MainWindow(QtWidgets.QMainWindow):
         #self.open_las_file()  # создает соединение с БД
         #self.table_fill()  # заполнение формы(таблицы) данными
         
-
+    def add_new_well(self):
+        dialog_add_new_well = AddWellDialog()
+        dialog_add_new_well.setModal(True)
+        dialog_add_new_well.resize(400,200)        
+        dialog_add_new_well.exec_()
         
     def docker_file_path(self, path):
         """Cчитывание пути выбранных файлов в FileSystemView

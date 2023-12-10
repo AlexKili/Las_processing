@@ -128,8 +128,6 @@ class ProjectTreeView(QtWidgets.QWidget):
         
         
         
-
-
 class MainWindow(QtWidgets.QMainWindow):
     """ Создает основное окно приложения для загрузки и визуализации las-файла
     """
@@ -193,7 +191,7 @@ if __name__=="__main__":
     
     # доступ к нему осуществляется через атрибут qApp из модуля QtWidgets
     window = MainWindow()  # создает объект окна в виде экземляра класса Qwidget
-    window.setWindowTitle("Seismic processing")  # задает текст, который будет выводиться в заголовке окна  Информация об объектах
+    window.setWindowTitle("Las-view processing")  # задает текст, который будет выводиться в заголовке окна  Информация об объектах
     
     # Создание строки состояния 
     window.statusBar().showMessage("ready to load file") 
