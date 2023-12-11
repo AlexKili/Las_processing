@@ -55,6 +55,127 @@ except ImportError as exception:
     from PyQt5 import QtWebEngineWidgets
 
 
+class AddWellDialog(QtWidgets.QDialog):
+    def __init__(self):
+        QtWidgets.QDialog.__init__(self)
+        self.setWindowTitle('Add new well to project')
+        self.vbox = QtWidgets.QVBoxLayout()
+        
+        self.name_well = "Name well"
+        self.coordinate_x = 0
+        self.coordinate_y = 0
+        self.type_altitude = "Kelly bushing"
+        self.list_type_altitude = ["Kelly bushing", "Ground level", "Rotary table", "Drill floor"]
+        self.elevation_altitude = 0
+        self.bottommd = 0
+        
+        # Блок для задания названия скважины
+        self.name_well_group = QtWidgets.QHBoxLayout()
+        self.name_well_group.addWidget( QtWidgets.QLabel("Name well: ") )
+        self.name_well_lineedit = QtWidgets.QLineEdit(str(self.name_well))
+        self.name_well_group.addWidget(self.name_well_lineedit)
+        
+        # TODO: блок для введения типа скважины
+        
+        # Блок для введения координат
+        self.coordinate_group = QtWidgets.QHBoxLayout()
+        self.coordinate_group.addWidget( QtWidgets.QLabel("Well head X: ") )
+        self.coordinate_x_lineedit = QtWidgets.QLineEdit(str(self.coordinate_x))
+        self.coordinate_group.addWidget(self.coordinate_x_lineedit)
+        self.coordinate_group.addWidget( QtWidgets.QLabel("Well head Y: ") )
+        self.coordinate_y_lineedit = QtWidgets.QLineEdit(str(self.coordinate_y))
+        self.coordinate_group.addWidget(self.coordinate_y_lineedit)
+        #verticalSpacer = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        
+        # Блок для введения альтитуды стола ротора
+        self.altitude_group = QtWidgets.QVBoxLayout()
+        self.type_altitude_group = QtWidgets.QHBoxLayout()
+        self.type_altitude_group.addWidget( QtWidgets.QLabel("Well datum name: ") )
+        self.type_altitude_combo = QtWidgets.QComboBox()
+        for element in self.list_type_altitude:
+            self.type_altitude_combo.addItem(element)
+        self.type_altitude_group.addWidget(self.type_altitude_combo)
+        
+        self.elevation_altitude_group = QtWidgets.QHBoxLayout()
+        self.elevation_altitude_group.addWidget( QtWidgets.QLabel("Elevation: ") )
+        self.elevation_altitude_lineedit = QtWidgets.QLineEdit(str(self.elevation_altitude))
+        self.elevation_altitude_group.addWidget(self.elevation_altitude_lineedit)
+        
+        self.altitude_group.addLayout(self.type_altitude_group)
+        self.altitude_group.addLayout(self.elevation_altitude_group)
+        
+        # Блок для указания глубины забоя
+        self.bottommd_group = QtWidgets.QHBoxLayout()
+        self.bottommd_group.addWidget( QtWidgets.QLabel("Bottom MD: ") )
+        self.bottommd_lineedit = QtWidgets.QLineEdit(str(self.bottommd))
+        self.bottommd_group.addWidget(self.bottommd_lineedit)
+        
+        # Блок для создания основных кнопок внизу 
+        self.button_group = QtWidgets.QHBoxLayout()
+        self.button_cancel = QtWidgets.QPushButton("Cancel")
+        self.button_apply = QtWidgets.QPushButton("Apply")
+        self.button_group.addWidget(self.button_cancel)
+        self.button_group.addWidget(self.button_apply)
+        
+        # Добавляем все группы на основной Vbox widget 
+        self.vbox.addItem(self.name_well_group)
+        self.vbox.addItem(self.coordinate_group)
+        self.vbox.addItem(self.altitude_group)
+        self.vbox.addItem(self.bottommd_group)
+        self.vbox.addItem(self.button_group)
+        
+        # Добавляем основнйо Vbox widget на основной слой для отображения 
+        self.setLayout(self.vbox)
+        
+        # добавляем сигналы к элементам
+        self.signals()
+    
+    def signals(self):
+        self.name_well_lineedit.editingFinished.connect(self.name_well_changed) # if need use textChanged signal for change text in real time
+        self.coordinate_x_lineedit.editingFinished.connect(self.coordinate_x_changed)
+        self.coordinate_y_lineedit.editingFinished.connect(self.coordinate_y_changed)
+        self.type_altitude_combo.activated.connect(self.type_altitude_changed)
+        self.elevation_altitude_lineedit.editingFinished.connect(self.elevation_changed)
+        self.bottommd_lineedit.editingFinished.connect(self.bottommd_changed)
+        self.button_cancel.pressed.connect(self.close)
+        self.button_apply.pressed.connect(self.apply_addwell)
+    
+    def name_well_changed(self):
+        self.name_well = str(self.name_well_lineedit.text())
+        print(self.name_well)
+        
+    def coordinate_x_changed(self):
+        try:
+            self.coordinate_x = float(self.coordinate_x_lineedit.text())
+        except:
+            self.coordinate_x_lineedit.setText("Enter a number, not a string")
+    
+    def coordinate_y_changed(self):
+        try:
+            self.coordinate_y = float(self.coordinate_y_lineedit.text())
+        except:
+            self.coordinate_y_lineedit.setText("Enter a number, not a string")
+    
+    def type_altitude_changed(self, index):
+        self.type_altitude = self.list_type_altitude[index]
+    
+    def elevation_changed(self):
+        try:
+            self.elevation_altitude = float(self.elevation_altitude_lineedit.text())
+        except:
+            self.elevation_altitude_lineedit.setText("Enter a number, not a string")
+    
+    def bottommd_changed(self):
+        try:
+            self.bottommd = float( self.bottommd_lineedit.text() )
+        except:
+            self.bottommd_lineedit.setText("Enter a number, not a string")
+    
+    
+    def apply_addwell(self):
+        pass
+    
+
 class FileSystemView(QtWidgets.QWidget):
     """Класс создающий QtWidget для отображения файловой системы
     
@@ -322,6 +443,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # БЛОК для загрузки иконок 
         if self.icon_style == 'stylish':
+            iconAdd = self.style().standardIcon( QtWidgets.QStyle.SP_FileDialogNewFolder )
             iconOpen = QtGui.QIcon(os.path.dirname(__file__) + 'Main_app_icon.png')
             iconPlot = QtGui.QIcon(os.path.dirname(__file__) + '/icons/IconMenuBar/plot.png')
             iconConnect = QtGui.QIcon(os.path.dirname(__file__) + '/icons/IconMenuBar/connect_curves.png')
@@ -330,6 +452,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.setWindowIcon(main_icon_app)
             
         elif self.icon_style == 'standard':
+            iconAdd = self.style().standardIcon( QtWidgets.QStyle.SP_FileDialogNewFolder )
             iconOpen = self.style().standardIcon( QtWidgets.QStyle.SP_FileIcon )
             iconPlot = self.style().standardIcon( QtWidgets.QStyle.SP_DesktopIcon )
             iconConnect = self.style().standardIcon( QtWidgets.QStyle.SP_ToolBarHorizontalExtensionButton )
@@ -340,12 +463,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.menu_instr = self.menu.addMenu('Instruments') # adding Menu to form 
         self.menu_settings = self.menu.addMenu('Settings')
         
+        self.menu_instr_addwell = QtWidgets.QAction(iconAdd, 'Add new well')
         self.menu_instr_openfile = QtWidgets.QAction(iconOpen, 'Open las-file') # create Action to adding in Menu to Open directory
         self.menu_instr_plotcurve = QtWidgets.QAction(iconPlot, 'Plot curve')
         self.menu_instr_connectcurve = QtWidgets.QAction(iconConnect, 'Connect many las')
         self.menu_instr_exporttoexcell = QtWidgets.QAction(iconExport, 'Export to excell')
         
         ## Подблок для создания сигналов и триггеров
+        self.menu_instr_addwell.triggered.connect(self.add_new_well)
         self.menu_instr_openfile.triggered.connect(self.menu_file_path) # Connect pressing Button to function open_dir
         self.plotcurve = PlotCurveWindow(self)
         self.menu_instr_plotcurve.triggered.connect(self.plotcurve.plot_curve) 
@@ -361,6 +486,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # БЛОК cоздания панели ToolBar 
         self.fileToolBar = QtWidgets.QToolBar("File", self)
+        self.fileToolBar.addAction(self.menu_instr_addwell)
         self.fileToolBar.addAction(self.menu_instr_openfile)
         self.fileToolBar.addAction(self.menu_instr_plotcurve)
         self.fileToolBar.addAction(self.menu_instr_connectcurve)
@@ -387,8 +513,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.listWidget.tree.clicked.connect(self.docker_file_path)
         
         # БЛОК для создания центральной таблицы
+        centralWidget = QtWidgets.QMdiArea()
+        self.setCentralWidget(centralWidget)
         self.tabWidget = TabWidget()
-        self.setCentralWidget(self.tabWidget.tab_widget) # устанавливает центральный виджет
+        subWindow_TabWidget = centralWidget.addSubWindow(self.tabWidget.tab_widget)
+        subWindow_TabWidget.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        subWindow_TabWidget.show()
+        
         
         # БЛОК для создания progressBar 
         self.progressBar = QtWidgets.QProgressBar()
@@ -403,7 +534,11 @@ class MainWindow(QtWidgets.QMainWindow):
         #self.open_las_file()  # создает соединение с БД
         #self.table_fill()  # заполнение формы(таблицы) данными
         
-
+    def add_new_well(self):
+        dialog_add_new_well = AddWellDialog()
+        dialog_add_new_well.setModal(True)
+        dialog_add_new_well.resize(400,200)        
+        dialog_add_new_well.exec_()
         
     def docker_file_path(self, path):
         """Cчитывание пути выбранных файлов в FileSystemView
