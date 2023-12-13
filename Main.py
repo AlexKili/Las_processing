@@ -287,10 +287,10 @@ class LasLoadingThread(QtCore.QThread):
         self.result.emit([self.las, las_header, columnname, values])
         
     def load_header(self, las_file):
-        """Заполнение текстовой модели вкладки Header
+        """Filling textual model in tab Header
 
         Args:
-            las_file (LasFile): открытый las-файл в lasio
+            las_file (LasFile): opened las-file in lasio
         """
         las_header = "~~~~~~WELL SECTION~~~~~~\n" + str(las_file.well) \
                 + "\n\n\n~~~~~~CURVES SECTION~~~~~~\n" + str(las_file.curves) \
@@ -303,7 +303,7 @@ class LasLoadingThread(QtCore.QThread):
         """Filling in the tabular model of the Data_curves tab
 
         Args:
-            las_file (LasFile): open las file in lasio
+            las_file (LasFile): opened las file in lasio
         """
         las_df = las_file.df() 
         las_df[las_df.index.name] = las_df.index
@@ -348,17 +348,18 @@ class MainWindow(QtWidgets.QMainWindow):
             iconExport = self.style().standardIcon( QtWidgets.QStyle.SP_FileDialogListView )
         
         # BLOCK to create menu
-        self.menu = QtWidgets.QMenuBar() # its Menu
-        self.menu_instr = self.menu.addMenu('Instruments') # adding Menu to form 
+        self.menu = QtWidgets.QMenuBar() 
+        self.menu_instr = self.menu.addMenu('Instruments') 
         self.menu_settings = self.menu.addMenu('Settings')
         
-        self.menu_instr_openfile = QtWidgets.QAction(iconOpen, 'Open las-file') # create Action to adding in Menu to Open directory
+        # create Action to adding in Menu to Open directory
+        self.menu_instr_openfile = QtWidgets.QAction(iconOpen, 'Open las-file') 
         self.menu_instr_plotcurve = QtWidgets.QAction(iconPlot, 'Plot curve')
         self.menu_instr_connectcurve = QtWidgets.QAction(iconConnect, 'Connect many las')
         self.menu_instr_exporttoexcell = QtWidgets.QAction(iconExport, 'Export to excell')
         
         ## Subblock to create signals andtriggers
-        self.menu_instr_openfile.triggered.connect(self.menu_file_path) # Connect pressing Button to function open_dir
+        self.menu_instr_openfile.triggered.connect(self.menu_file_path) 
         self.plotcurve = PlotCurveWindow(self)
         self.menu_instr_plotcurve.triggered.connect(self.plotcurve.plot_curve) 
         self.menu_instr_exporttoexcell.triggered.connect(self.export_to_excellfile)
@@ -369,7 +370,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.menu_instr.addAction(self.menu_instr_connectcurve)
         self.menu_instr.addAction(self.menu_instr_exporttoexcell)
         
-        self.setMenuBar(self.menu) # Добавляем основное меню в основное окно
+        self.setMenuBar(self.menu)  # Add main menu in main window
         
         # BLOCK creating ToolBar panel
         self.fileToolBar = QtWidgets.QToolBar("File", self)
@@ -381,8 +382,8 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # BLOCK to create a widget attached on the left, for the file system
         self.dockFilesystem = QtWidgets.QDockWidget("File system", self)
-        self.listWidget = FileSystemView()  # загружаем класс FileSystemView
-        self.dockFilesystem.setWidget(self.listWidget)  # устанавливаем его в боковую панель
+        self.listWidget = FileSystemView() 
+        self.dockFilesystem.setWidget(self.listWidget) 
         self.setCentralWidget(QtWidgets.QTextEdit())
         self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self.dockFilesystem)
         ## self.dockFilesystem.setFloating(False) # this need to floating panel
@@ -391,8 +392,8 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # BLOCK to create a widget with a list of curves attached on the left
         self.dockCurveslist = QtWidgets.QDockWidget("Curves in list", self)
-        self.listCurveslist = QtWidgets.QTextEdit()  # загружаем класс FileSystemVi
-        self.dockCurveslist.setWidget(self.listCurveslist)  # устанавливаем его в боковую панель
+        self.listCurveslist = QtWidgets.QTextEdit()  
+        self.dockCurveslist.setWidget(self.listCurveslist)  
         self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self.dockCurveslist)
         
         # BLOCK to create central tables
@@ -460,7 +461,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.setWindowTitle("Las-file processing" + ' || ' + file_path) 
             self.path_to_save = file_path
             
-            # Показать progress bar
+            # Show progress bar
             #self.progressBar.setFixedSize(self.geometry().width() - 120, 16) # опция если нужен фиксированный размер progress bar
             self.progressBar.show()
             self.statusBar().showMessage(f"loading file ...", 0)
