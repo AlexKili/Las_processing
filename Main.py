@@ -59,12 +59,15 @@ except ImportError as exception:
 
 
 class AddWellDialog(QtWidgets.QDialog):
-    def __init__(self):
+    def __init__(self, database):
         QtWidgets.QDialog.__init__(self)
+        self.database = database
+        
         self.setWindowTitle('Add new well to project')
         self.vbox = QtWidgets.QVBoxLayout()
         
         self.name_well = "Name well"
+        self.uwi = None
         self.coordinate_x = 0
         self.coordinate_y = 0
         self.type_altitude = "Kelly bushing"
@@ -77,6 +80,9 @@ class AddWellDialog(QtWidgets.QDialog):
         self.name_well_group.addWidget( QtWidgets.QLabel("Name well: ") )
         self.name_well_lineedit = QtWidgets.QLineEdit(str(self.name_well))
         self.name_well_group.addWidget(self.name_well_lineedit)
+        self.name_well_group.addWidget( QtWidgets.QLabel("UWI: ") )
+        self.uwi_lineedit = QtWidgets.QLineEdit(str(self.uwi))
+        self.name_well_group.addWidget(self.uwi_lineedit)
         
         # TODO: блок для введения типа скважины
         
@@ -174,14 +180,49 @@ class AddWellDialog(QtWidgets.QDialog):
         except:
             self.bottommd_lineedit.setText("Enter a number, not a string")
     
+    def well_id_calculate(self):
+        self.database.cur.execute("""SELECT *
+                            FROM history
+                            ORDER BY id DESC
+                            LIMIT 1""")
+        self.database.conn.fetchall()
+        pass
     
     def apply_addwell(self):
+        self.database.cur.execute("""INSERT INTO Wells_main 
+                                    (well_id,
+                                    name_well,
+                                    UWI,
+                                    coordinate_x,
+                                    coordinate_y,
+                                    type_altitude,
+                                    list_type_altitude,
+                                    elevation_altitude,
+                                    bottommd) 
+                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
+                                    (self.name_well,
+                                    self.uwi,
+                                    self.coordinate_x,
+                                    self.coordinate_y,
+                                    self.type_altitude,
+                                    self.list_type_altitude,
+                                    self.elevation_altitude,
+                                    self.bottommd))
+        self.database.conn.commit()
+        pass
+    
+
+class DatabaseProject():
+    """This class create a connection database or database into memory"""
+    # TODO: into instruments create a import into postgresql
+    # TODO: into settings create a path to database
+    def __init__(self):
         #conn = sqlite3.connect('project_test.db')
-        conn = sqlite3.connect(':memory:')
-        cur = conn.cursor()
+        path_to_db = ':memory:'
+        self.conn = sqlite3.connect(path_to_db)
+        self.cur = self.conn.cursor()
         # Создаем таблицу Users
-        cur.execute('''
-        CREATE TABLE IF NOT EXISTS Wells_main (
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS Wells_main (
                     well_id INTEGER PRIMARY KEY,
                     name_well TEXT NOT NULL,
                     UWI FLOAT,
@@ -197,30 +238,27 @@ class AddWellDialog(QtWidgets.QDialog):
                     Cost FLOAT
                     )
                     ''')
+        self.conn.commit()
+        
 
-                    #Simulation name
-                    #Simulation export date
-                    #Operator
-                    #TWT auto
-                    #Uncertainty ground level
-                    #Uncertainty radius
-                    #Uncertainty standard deviation factor
-                    #FLOAT,Ambient temperature
-                    #FLOAT,Heat transfer coefficient
-                    #Max zone
-                    
-                    
-                    
-
-
+        #Simulation name
+        #Simulation export date
+        #Operator
+        #TWT auto
+        #Uncertainty ground level
+        #Uncertainty radius
+        #Uncertainty standard deviation factor
+        #FLOAT,Ambient temperature
+        #FLOAT,Heat transfer coefficient
+        #Max zone
+    
         # Сохраняем изменения и закрываем соединение
-        conn.commit()
-        conn.close()
-
+        def close_connection(self):
+            self.conn.close()
 
         pd.Dataframe([])
         pass
-    
+
 
 class FileSystemView(QtWidgets.QWidget):
     """A class that creates a QtWidget for displaying the file system
@@ -504,7 +542,8 @@ class MainWindow(QtWidgets.QMainWindow):
         print('MAINWINDOW INIT')
         
         self.las = None
-        self.icon_style = 'standard' # TODO: get this parameter from settings.ini
+        self.icon_style = 'standard'  # TODO: get this parameter from settings.ini
+        self.database = DatabaseProject()  # создаем базу данных 
         
         # BLOCK to loading icons
         if self.icon_style == 'stylish':
@@ -598,7 +637,7 @@ class MainWindow(QtWidgets.QMainWindow):
         ## self.table_fill()  # заполнение формы(таблицы) данными
         
     def add_new_well(self):
-        dialog_add_new_well = AddWellDialog()
+        dialog_add_new_well = AddWellDialog(self.database)
         dialog_add_new_well.setModal(True)
         dialog_add_new_well.resize(400,200)
         dialog_add_new_well.exec_()
