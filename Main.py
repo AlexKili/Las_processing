@@ -59,9 +59,10 @@ except ImportError as exception:
 
 
 class AddWellDialog(QtWidgets.QDialog):
-    def __init__(self, database):
+    def __init__(self, database, parent):
         QtWidgets.QDialog.__init__(self)
         self.database = database
+        self.parent = parent
         
         self.setWindowTitle('Add new well to project')
         self.vbox = QtWidgets.QVBoxLayout()
@@ -181,14 +182,21 @@ class AddWellDialog(QtWidgets.QDialog):
             self.bottommd_lineedit.setText("Enter a number, not a string")
     
     def well_id_calculate(self):
-        self.database.cur.execute("""SELECT *
-                            FROM history
-                            ORDER BY id DESC
+        self.database.cur.execute("""SELECT well_id
+                            FROM Wells_main 
+                            ORDER BY well_id DESC
                             LIMIT 1""")
-        self.database.conn.fetchall()
-        pass
+        result = self.database.cur.fetchall()
+        print(result)
+        if result == []:
+            result = 1
+        else:
+            result = result[0][0]  # select the result of the first row of the first column
+            result += 1
+        return result
     
     def apply_addwell(self):
+        self.well_id = self.well_id_calculate()
         self.database.cur.execute("""INSERT INTO Wells_main 
                                     (well_id,
                                     name_well,
@@ -196,20 +204,21 @@ class AddWellDialog(QtWidgets.QDialog):
                                     coordinate_x,
                                     coordinate_y,
                                     type_altitude,
-                                    list_type_altitude,
                                     elevation_altitude,
                                     bottommd) 
-                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
-                                    (self.name_well,
+                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", 
+                                    (self.well_id,
+                                    self.name_well,
                                     self.uwi,
                                     self.coordinate_x,
                                     self.coordinate_y,
                                     self.type_altitude,
-                                    self.list_type_altitude,
                                     self.elevation_altitude,
                                     self.bottommd))
         self.database.conn.commit()
-        pass
+        self.parent.statusBar().showMessage("Add well success")
+        self.parent.listWidget.addItem(str(self.name_well))
+        self.close()
     
 
 class DatabaseProject():
@@ -229,12 +238,11 @@ class DatabaseProject():
                     coordinate_x FLOAT,
                     coordinate_y FLOAT,
                     type_altitude TEXT,
-                    list_type_altitude FLOAT,
                     elevation_altitude FLOAT,
                     bottommd FLOAT,
                     Well symbol INTEGER,
                     year_drilling INTEGER,
-                    Spud_date DATE, 
+                    Spud_date TEXT, 
                     Cost FLOAT
                     )
                     ''')
@@ -256,7 +264,7 @@ class DatabaseProject():
         def close_connection(self):
             self.conn.close()
 
-        pd.Dataframe([])
+        #pd.Dataframe([])
         pass
 
 
@@ -574,6 +582,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.menu_instr_exporttoexcell = QtWidgets.QAction(iconExport, 'Export to excell')
         
         ## Subblock to create signals andtriggers
+        self.menu_instr_addwell.triggered.connect(self.add_new_well)
         self.menu_instr_openfile.triggered.connect(self.menu_file_path) 
         self.plotcurve = PlotCurveWindow(self)
         self.menu_instr_plotcurve.triggered.connect(self.plotcurve.plot_curve) 
@@ -598,13 +607,15 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # BLOCK to create a widget attached on the left, for the file system
         self.dockFilesystem = QtWidgets.QDockWidget("File system", self)
-        self.listWidget = FileSystemView()  
+        #self.listWidget = FileSystemView()
+        self.listWidget = QtWidgets.QListWidget()
+        self.listWidget.installEventFilter(self)
         self.dockFilesystem.setWidget(self.listWidget)  
         self.setCentralWidget(QtWidgets.QTextEdit())
         self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self.dockFilesystem)
         ## self.dockFilesystem.setFloating(False)
         ## setting the signals
-        self.listWidget.tree.clicked.connect(self.docker_file_path)
+        #self.listWidget.tree.clicked.connect(self.docker_file_path)
         
         # BLOCK to create a widget with a list of curves attached on the left
         self.dockCurveslist = QtWidgets.QDockWidget("Curves in list", self)
@@ -612,8 +623,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.dockCurveslist.setWidget(self.listCurveslist)  
         self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self.dockCurveslist)
         ## self.dockFilesystem.setFloating(False)
-        ## setting the signals
-        self.listWidget.tree.clicked.connect(self.docker_file_path)
         
         # BLOCK to create central tables
         centralWidget = QtWidgets.QMdiArea()
@@ -628,19 +637,33 @@ class MainWindow(QtWidgets.QMainWindow):
         self.statusBar().addPermanentWidget(self.progressBar)
         self.progressBar.hide()
         
-        # BLOCK шьзщкештп the necessary functions for curve processing
+        # BLOCK create the necessary functions for curve processing
         # This needeng to next updates
         # TODO: make features available after the beta release with a new interface
         ## self.load_settings()
         ## self.open_temp_file()  # запускает функцию для открытия временного файла и выборки необходимых данных для запроса
         ## self.open_las_file()  # создает соединение с БД
         ## self.table_fill()  # заполнение формы(таблицы) данными
-        
+    
+    def eventFilter(self, source, event):
+        if (event.type() == QtCore.QEvent.ContextMenu and
+            source is self.listWidget):
+            menu = QtWidgets.QMenu()
+            menu.addAction('Open File')
+            if menu.exec_(event.globalPos()):
+                item = source.itemAt(event.pos())
+                print(item.text())
+            return True
+        return super(QtWidgets.QWidget, self.dockFilesystem).eventFilter(source, event)
+    
     def add_new_well(self):
-        dialog_add_new_well = AddWellDialog(self.database)
+        dialog_add_new_well = AddWellDialog(self.database, self)
         dialog_add_new_well.setModal(True)
         dialog_add_new_well.resize(400,200)
         dialog_add_new_well.exec_()
+        
+        self.listWidget.addItems('')
+        
         
     def docker_file_path(self, path):
         """Reading the path of selected files in FileSystemView
@@ -677,7 +700,9 @@ class MainWindow(QtWidgets.QMainWindow):
     
     def menu_file_path(self):
         """This function is called after clicking the 'Browse' button and allows you to select the path to the las files"""
-        file_path = QtWidgets.QFileDialog.getOpenFileName(parent=self, caption="Выбор las-файла...", directory=os.path.dirname(__file__), filter='Las-file (*.las);;Txt-file (*.txt);;All-files (*)')
+        file_path = QtWidgets.QFileDialog.getOpenFileName(parent=self, 
+                                                        caption="Выбор las-файла...",  
+                                                        filter='Las-file (*.las);;Txt-file (*.txt);;All-files (*)')  # directory=os.path.dirname(__file__) 
         file_path = file_path[0]
         
         if file_path == '':
