@@ -542,17 +542,11 @@ class LasLoadingThread(QtCore.QThread):
         return columnname, values
 
 
-class MainWindow(QtWidgets.QMainWindow):
-    """ Creates the main application window for loading and visualizing the las file
-    """
-    def __init__(self, parent=None):
-        QtWidgets.QWidget.__init__(self, parent)
-        print('MAINWINDOW INIT')
-        
-        self.las = None
-        self.icon_style = 'standard'  # TODO: get this parameter from settings.ini
-        self.database = DatabaseProject()  # создаем базу данных 
-        
+class MenuInstruments(QtWidgets.QMenuBar):
+    def __init__(self, parent):
+        super().__init__()
+        self.parent = parent
+        self.icon_style = 'standard'
         # BLOCK to loading icons
         if self.icon_style == 'stylish':
             iconAdd = self.style().standardIcon( QtWidgets.QStyle.SP_FileDialogNewFolder )
@@ -570,23 +564,22 @@ class MainWindow(QtWidgets.QMainWindow):
             iconExport = self.style().standardIcon( QtWidgets.QStyle.SP_FileDialogListView )
         
         # BLOCK to create menu
-        self.menu = QtWidgets.QMenuBar() 
-        self.menu_instr = self.menu.addMenu('Instruments')
-        self.menu_settings = self.menu.addMenu('Settings')
+        self.menu_instr = self.addMenu('Instruments')
+        self.menu_settings = self.addMenu('Settings')
         
         # create Action to adding in Menu to Open directory
-        self.menu_instr_addwell = QtWidgets.QAction(iconOpen, 'Add well to project') 
+        self.menu_instr_addwell = QtWidgets.QAction(iconOpen, 'Add well to project')
         self.menu_instr_openfile = QtWidgets.QAction(iconOpen, 'Open las-file') 
         self.menu_instr_plotcurve = QtWidgets.QAction(iconPlot, 'Plot curve')
         self.menu_instr_connectcurve = QtWidgets.QAction(iconConnect, 'Connect many las')
         self.menu_instr_exporttoexcell = QtWidgets.QAction(iconExport, 'Export to excell')
         
         ## Subblock to create signals andtriggers
-        self.menu_instr_addwell.triggered.connect(self.add_new_well)
-        self.menu_instr_openfile.triggered.connect(self.menu_file_path) 
-        self.plotcurve = PlotCurveWindow(self)
-        self.menu_instr_plotcurve.triggered.connect(self.plotcurve.plot_curve) 
-        self.menu_instr_exporttoexcell.triggered.connect(self.export_to_excellfile)
+        self.menu_instr_addwell.triggered.connect(self.parent.add_new_well)
+        self.menu_instr_openfile.triggered.connect(self.parent.menu_file_path) 
+        self.plotcurve = PlotCurveWindow(self.parent)
+        self.menu_instr_plotcurve.triggered.connect(self.plotcurve.plot_curve)
+        self.menu_instr_exporttoexcell.triggered.connect(self.parent.export_to_excellfile)
         
         ## Subblock to adding items in the main menu
         self.menu_instr.addAction(self.menu_instr_openfile) # adding Action in Menu 
@@ -594,35 +587,51 @@ class MainWindow(QtWidgets.QMainWindow):
         self.menu_instr.addAction(self.menu_instr_connectcurve)
         self.menu_instr.addAction(self.menu_instr_exporttoexcell)
         
-        self.setMenuBar(self.menu)  # Add main menu in main window 
+        self.parent.setMenuBar(self)  # Add main menu in main window 
         
         # BLOCK creating ToolBar panel
-        self.fileToolBar = QtWidgets.QToolBar("File", self)
+        self.fileToolBar = QtWidgets.QToolBar("File", self.parent)
         self.fileToolBar.addAction(self.menu_instr_addwell)
         self.fileToolBar.addAction(self.menu_instr_openfile)
         self.fileToolBar.addAction(self.menu_instr_plotcurve)
         self.fileToolBar.addAction(self.menu_instr_connectcurve)
         self.fileToolBar.addAction(self.menu_instr_exporttoexcell)
-        self.addToolBar(self.fileToolBar)
+        self.parent.addToolBar(self.fileToolBar)
         
+    pass
+
+class MainWindow(QtWidgets.QMainWindow):
+    """ Creates the main application window for loading and visualizing the las file
+    """
+    def __init__(self, parent=None):
+        QtWidgets.QWidget.__init__(self, parent)
+        print('MAINWINDOW INIT')
+        
+        self.las = None
+        self.icon_style = 'standard'  # TODO: get this parameter from settings.ini
+        self.database = DatabaseProject()  # создаем базу данных 
+        
+        self.menu = MenuInstruments(self) 
+
         # BLOCK to create a widget attached on the left, for the file system
-        self.dockFilesystem = QtWidgets.QDockWidget("File system", self)
+        self.dockProjectbrowser = QtWidgets.QDockWidget("Project browser", self)
         #self.listWidget = FileSystemView()
         self.listWidget = QtWidgets.QListWidget()
         self.listWidget.installEventFilter(self)
-        self.dockFilesystem.setWidget(self.listWidget)  
+        self.dockProjectbrowser.setWidget(self.listWidget)
         self.setCentralWidget(QtWidgets.QTextEdit())
-        self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self.dockFilesystem)
-        ## self.dockFilesystem.setFloating(False)
+        self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self.dockProjectbrowser)
+        ## self.dockProjectbrowser.setFloating(False)
         ## setting the signals
         #self.listWidget.tree.clicked.connect(self.docker_file_path)
         
+        
         # BLOCK to create a widget with a list of curves attached on the left
-        self.dockCurveslist = QtWidgets.QDockWidget("Curves in list", self)
+        self.dockCurveslist = QtWidgets.QDockWidget("Curves in well", self)
         self.listCurveslist = QtWidgets.QTextEdit()  
         self.dockCurveslist.setWidget(self.listCurveslist)  
         self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self.dockCurveslist)
-        ## self.dockFilesystem.setFloating(False)
+        ## self.dockProjectbrowser.setFloating(False)
         
         # BLOCK to create central tables
         centralWidget = QtWidgets.QMdiArea()
@@ -649,20 +658,18 @@ class MainWindow(QtWidgets.QMainWindow):
         if (event.type() == QtCore.QEvent.ContextMenu and
             source is self.listWidget):
             menu = QtWidgets.QMenu()
-            menu.addAction('Open File')
+            menu.addAction('Add las to well')
             if menu.exec_(event.globalPos()):
                 item = source.itemAt(event.pos())
                 print(item.text())
             return True
-        return super(QtWidgets.QWidget, self.dockFilesystem).eventFilter(source, event)
+        return super(QtWidgets.QWidget, self.dockProjectbrowser).eventFilter(source, event)
     
     def add_new_well(self):
         dialog_add_new_well = AddWellDialog(self.database, self)
         dialog_add_new_well.setModal(True)
         dialog_add_new_well.resize(400,200)
         dialog_add_new_well.exec_()
-        
-        self.listWidget.addItems('')
         
         
     def docker_file_path(self, path):
