@@ -18,9 +18,6 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 import lasio
 import io
 import csv
-import pandas as pd
-import sqlite3
-import time
 
 # for import settings
 #import configparser
@@ -58,216 +55,6 @@ except ImportError as exception:
     from PyQt5 import QtWebEngineWidgets
 
 
-class AddWellDialog(QtWidgets.QDialog):
-    def __init__(self, database, parent):
-        QtWidgets.QDialog.__init__(self)
-        self.database = database
-        self.parent = parent
-        
-        self.setWindowTitle('Add new well to project')
-        self.vbox = QtWidgets.QVBoxLayout()
-        
-        self.name_well = "Name well"
-        self.uwi = None
-        self.coordinate_x = 0
-        self.coordinate_y = 0
-        self.type_altitude = "Kelly bushing"
-        self.list_type_altitude = ["Kelly bushing", "Ground level", "Rotary table", "Drill floor"]
-        self.elevation_altitude = 0
-        self.bottommd = 0
-        
-        # Блок для задания названия скважины
-        self.name_well_group = QtWidgets.QHBoxLayout()
-        self.name_well_group.addWidget( QtWidgets.QLabel("Name well: ") )
-        self.name_well_lineedit = QtWidgets.QLineEdit(str(self.name_well))
-        self.name_well_group.addWidget(self.name_well_lineedit)
-        self.name_well_group.addWidget( QtWidgets.QLabel("UWI: ") )
-        self.uwi_lineedit = QtWidgets.QLineEdit(str(self.uwi))
-        self.name_well_group.addWidget(self.uwi_lineedit)
-        
-        # TODO: блок для введения типа скважины
-        
-        # Блок для введения координат
-        self.coordinate_group = QtWidgets.QHBoxLayout()
-        self.coordinate_group.addWidget( QtWidgets.QLabel("Well head X: ") )
-        self.coordinate_x_lineedit = QtWidgets.QLineEdit(str(self.coordinate_x))
-        self.coordinate_group.addWidget(self.coordinate_x_lineedit)
-        self.coordinate_group.addWidget( QtWidgets.QLabel("Well head Y: ") )
-        self.coordinate_y_lineedit = QtWidgets.QLineEdit(str(self.coordinate_y))
-        self.coordinate_group.addWidget(self.coordinate_y_lineedit)
-        #verticalSpacer = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        
-        # Блок для введения альтитуды стола ротора
-        self.altitude_group = QtWidgets.QVBoxLayout()
-        self.type_altitude_group = QtWidgets.QHBoxLayout()
-        self.type_altitude_group.addWidget( QtWidgets.QLabel("Well datum name: ") )
-        self.type_altitude_combo = QtWidgets.QComboBox()
-        for element in self.list_type_altitude:
-            self.type_altitude_combo.addItem(element)
-        self.type_altitude_group.addWidget(self.type_altitude_combo)
-        
-        self.elevation_altitude_group = QtWidgets.QHBoxLayout()
-        self.elevation_altitude_group.addWidget( QtWidgets.QLabel("Elevation: ") )
-        self.elevation_altitude_lineedit = QtWidgets.QLineEdit(str(self.elevation_altitude))
-        self.elevation_altitude_group.addWidget(self.elevation_altitude_lineedit)
-        
-        self.altitude_group.addLayout(self.type_altitude_group)
-        self.altitude_group.addLayout(self.elevation_altitude_group)
-        
-        # Блок для указания глубины забоя
-        self.bottommd_group = QtWidgets.QHBoxLayout()
-        self.bottommd_group.addWidget( QtWidgets.QLabel("Bottom MD: ") )
-        self.bottommd_lineedit = QtWidgets.QLineEdit(str(self.bottommd))
-        self.bottommd_group.addWidget(self.bottommd_lineedit)
-        
-        # Блок для создания основных кнопок внизу 
-        self.button_group = QtWidgets.QHBoxLayout()
-        self.button_cancel = QtWidgets.QPushButton("Cancel")
-        self.button_apply = QtWidgets.QPushButton("Apply")
-        self.button_group.addWidget(self.button_cancel)
-        self.button_group.addWidget(self.button_apply)
-        
-        # Добавляем все группы на основной Vbox widget 
-        self.vbox.addItem(self.name_well_group)
-        self.vbox.addItem(self.coordinate_group)
-        self.vbox.addItem(self.altitude_group)
-        self.vbox.addItem(self.bottommd_group)
-        self.vbox.addItem(self.button_group)
-        
-        # Добавляем основнйо Vbox widget на основной слой для отображения 
-        self.setLayout(self.vbox)
-        
-        # добавляем сигналы к элементам
-        self.signals()
-    
-    def signals(self):
-        self.name_well_lineedit.editingFinished.connect(self.name_well_changed) # if need use textChanged signal for change text in real time
-        self.coordinate_x_lineedit.editingFinished.connect(self.coordinate_x_changed)
-        self.coordinate_y_lineedit.editingFinished.connect(self.coordinate_y_changed)
-        self.type_altitude_combo.activated.connect(self.type_altitude_changed)
-        self.elevation_altitude_lineedit.editingFinished.connect(self.elevation_changed)
-        self.bottommd_lineedit.editingFinished.connect(self.bottommd_changed)
-        self.button_cancel.pressed.connect(self.close)
-        self.button_apply.pressed.connect(self.apply_addwell)
-    
-    def name_well_changed(self):
-        self.name_well = str(self.name_well_lineedit.text())
-        print(self.name_well)
-        
-    def coordinate_x_changed(self):
-        try:
-            self.coordinate_x = float(self.coordinate_x_lineedit.text())
-        except:
-            self.coordinate_x_lineedit.setText("Enter a number, not a string")
-    
-    def coordinate_y_changed(self):
-        try:
-            self.coordinate_y = float(self.coordinate_y_lineedit.text())
-        except:
-            self.coordinate_y_lineedit.setText("Enter a number, not a string")
-    
-    def type_altitude_changed(self, index):
-        self.type_altitude = self.list_type_altitude[index]
-    
-    def elevation_changed(self):
-        try:
-            self.elevation_altitude = float(self.elevation_altitude_lineedit.text())
-        except:
-            self.elevation_altitude_lineedit.setText("Enter a number, not a string")
-    
-    def bottommd_changed(self):
-        try:
-            self.bottommd = float( self.bottommd_lineedit.text() )
-        except:
-            self.bottommd_lineedit.setText("Enter a number, not a string")
-    
-    def well_id_calculate(self):
-        self.database.cur.execute("""SELECT well_id
-                            FROM Wells_main 
-                            ORDER BY well_id DESC
-                            LIMIT 1""")
-        result = self.database.cur.fetchall()
-        print(result)
-        if result == []:
-            result = 1
-        else:
-            result = result[0][0]  # select the result of the first row of the first column
-            result += 1
-        return result
-    
-    def apply_addwell(self):
-        self.well_id = self.well_id_calculate()
-        self.database.cur.execute("""INSERT INTO Wells_main 
-                                    (well_id,
-                                    name_well,
-                                    UWI,
-                                    coordinate_x,
-                                    coordinate_y,
-                                    type_altitude,
-                                    elevation_altitude,
-                                    bottommd) 
-                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", 
-                                    (self.well_id,
-                                    self.name_well,
-                                    self.uwi,
-                                    self.coordinate_x,
-                                    self.coordinate_y,
-                                    self.type_altitude,
-                                    self.elevation_altitude,
-                                    self.bottommd))
-        self.database.conn.commit()
-        self.parent.statusBar().showMessage("Add well success")
-        self.parent.listWidget.addItem(str(self.name_well))
-        self.close()
-    
-
-class DatabaseProject():
-    """This class create a connection database or database into memory"""
-    # TODO: into instruments create a import into postgresql
-    # TODO: into settings create a path to database
-    def __init__(self):
-        #conn = sqlite3.connect('project_test.db')
-        path_to_db = ':memory:'
-        self.conn = sqlite3.connect(path_to_db)
-        self.cur = self.conn.cursor()
-        # Создаем таблицу Users
-        self.cur.execute('''CREATE TABLE IF NOT EXISTS Wells_main (
-                    well_id INTEGER PRIMARY KEY,
-                    name_well TEXT NOT NULL,
-                    UWI FLOAT,
-                    coordinate_x FLOAT,
-                    coordinate_y FLOAT,
-                    type_altitude TEXT,
-                    elevation_altitude FLOAT,
-                    bottommd FLOAT,
-                    Well symbol INTEGER,
-                    year_drilling INTEGER,
-                    Spud_date TEXT, 
-                    Cost FLOAT
-                    )
-                    ''')
-        self.conn.commit()
-        
-
-        #Simulation name
-        #Simulation export date
-        #Operator
-        #TWT auto
-        #Uncertainty ground level
-        #Uncertainty radius
-        #Uncertainty standard deviation factor
-        #FLOAT,Ambient temperature
-        #FLOAT,Heat transfer coefficient
-        #Max zone
-    
-        # Сохраняем изменения и закрываем соединение
-        def close_connection(self):
-            self.conn.close()
-
-        #pd.Dataframe([])
-        pass
-
-
 class FileSystemView(QtWidgets.QWidget):
     """A class that creates a QtWidget for displaying the file system
     """
@@ -287,8 +74,8 @@ class FileSystemView(QtWidgets.QWidget):
         # setting model
         self.dirModel = QtWidgets.QFileSystemModel()
         self.dirModel.setRootPath(dir_Path)  
-        self.dirModel.setNameFilters(["*.las"])  # установка фильтра файлов по расширению
-        self.dirModel.setNameFilterDisables(False)  # не показывать файлы не прошедшие фильтр
+        self.dirModel.setNameFilters(["*.las"])  # installing a file filter by extension
+        self.dirModel.setNameFilterDisables(False)  # do not show files that have not passed the filter
         
         # setting model QTree
         self.tree =  QtWidgets.QTreeView()
@@ -311,23 +98,21 @@ class TabWidget(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
         # List of tab names
-        self.tab_name = ['Header', 'Data_curves', 'Viewer'] 
+        self.tab_name = ['Header', 'Data_curves', 'Viewer']
         
         ### creates an instance of the class that creates tabs (then they will be assigned the names of the tables selected on request)
-        self.tab_widget = QtWidgets.QTabWidget()  
-        #self.tab_widget.setTabShape(1)  # makes tabs triangular if necessary
+        self.tab_widget = QtWidgets.QTabWidget() 
+        ## self.tab_widget.setTabShape(1)  # makes tabs triangular if necessary
         
-        # БЛОК для создания вкладки Header
+        # BLOCK for creating the Header tab
         self.text_header = QtWidgets.QTextEdit()
         self.tab_widget.addTab(self.text_header, 'Header')  # добавить вкладку 'Headers' с виджетом text
         
         # BLOCK for creating the Data_curves tab
-        # Creating a tab with data from the las file 
-        # 'Header' field will contain a table
-        # below is the block in which the QTableView is generated
-        
-        ## creates an instance of the class to display data as a table
-        self.table = QtWidgets.QTableView() 
+        ## creating a tab with data from the las file 
+        ## 'Header' field will contain a table
+        ## below is the block in which the QTableView is generated
+        self.table = QtWidgets.QTableView() # creates an instance of the class to display data as a table
         
         ## Creates a tabular model
         self.tableview_model = QtGui.QStandardItemModel()  
@@ -399,8 +184,8 @@ class TabWidget(QtWidgets.QWidget):
     
     def tab_select(self, index):
         # It's for next update
-        #print('INDEX:', index)
-        #print(self.tab_name[index])
+        # print('INDEX:', index)
+        # print(self.tab_name[index])
         pass
 
 
@@ -426,7 +211,6 @@ class PlotCurveWindow(QtWidgets.QWidget):
         vbox.addWidget(self.plot_widget)
         self.plotcurvewindow.setLayout(vbox)
         
-    
     def plot_curve(self):
         self.las = window.las
         
@@ -452,7 +236,6 @@ class PlotCurveWindow(QtWidgets.QWidget):
         
         self.change_curve(0)
         self.plotcurvewindow.show()
-
         
     def change_curve(self, string):
         name_curve = list(self.dict_curves.keys())[string]
@@ -514,8 +297,6 @@ class LasLoadingThread(QtCore.QThread):
                     + "\n\n\n~~~~~~PARAMETERS SECTION~~~~~~\n" +str(las_file.params) \
                         + "\n\n\n~~~~~~OTHER SECTION~~~~~~\n" + str(las_file.other)
         
-        # TODO: write our driver to formating header as html
-        #self.tab_widget.addTab(self.text_header, 'Header')  # добавить вкладку 'Headers' с виджетом text
         return las_header
     
     def load_lasdf(self, las_file):
@@ -542,64 +323,6 @@ class LasLoadingThread(QtCore.QThread):
         return columnname, values
 
 
-class MenuInstruments(QtWidgets.QMenuBar):
-    def __init__(self, parent):
-        super().__init__()
-        self.parent = parent
-        self.icon_style = 'standard'
-        # BLOCK to loading icons
-        if self.icon_style == 'stylish':
-            iconAdd = self.style().standardIcon( QtWidgets.QStyle.SP_FileDialogNewFolder )
-            iconOpen = QtGui.QIcon(os.path.dirname(__file__) + 'Main_app_icon.png')
-            iconPlot = QtGui.QIcon(os.path.dirname(__file__) + '/icons/IconMenuBar/plot.png')
-            iconConnect = QtGui.QIcon(os.path.dirname(__file__) + '/icons/IconMenuBar/connect_curves.png')
-            iconExport = QtGui.QIcon(os.path.dirname(__file__) + '/icons/IconMenuBar/export.png')
-            main_icon_app = QtGui.QIcon(os.path.dirname(__file__) + 'Main_app_icon.png')
-            self.setWindowIcon(main_icon_app)
-        elif self.icon_style == 'standard':
-            iconAdd = self.style().standardIcon( QtWidgets.QStyle.SP_FileDialogNewFolder )
-            iconOpen = self.style().standardIcon( QtWidgets.QStyle.SP_FileIcon )
-            iconPlot = self.style().standardIcon( QtWidgets.QStyle.SP_DesktopIcon )
-            iconConnect = self.style().standardIcon( QtWidgets.QStyle.SP_ToolBarHorizontalExtensionButton )
-            iconExport = self.style().standardIcon( QtWidgets.QStyle.SP_FileDialogListView )
-        
-        # BLOCK to create menu
-        self.menu_instr = self.addMenu('Instruments')
-        self.menu_settings = self.addMenu('Settings')
-        
-        # create Action to adding in Menu to Open directory
-        self.menu_instr_addwell = QtWidgets.QAction(iconOpen, 'Add well to project')
-        self.menu_instr_openfile = QtWidgets.QAction(iconOpen, 'Open las-file') 
-        self.menu_instr_plotcurve = QtWidgets.QAction(iconPlot, 'Plot curve')
-        self.menu_instr_connectcurve = QtWidgets.QAction(iconConnect, 'Connect many las')
-        self.menu_instr_exporttoexcell = QtWidgets.QAction(iconExport, 'Export to excell')
-        
-        ## Subblock to create signals andtriggers
-        self.menu_instr_addwell.triggered.connect(self.parent.add_new_well)
-        self.menu_instr_openfile.triggered.connect(self.parent.menu_file_path) 
-        self.plotcurve = PlotCurveWindow(self.parent)
-        self.menu_instr_plotcurve.triggered.connect(self.plotcurve.plot_curve)
-        self.menu_instr_exporttoexcell.triggered.connect(self.parent.export_to_excellfile)
-        
-        ## Subblock to adding items in the main menu
-        self.menu_instr.addAction(self.menu_instr_openfile) # adding Action in Menu 
-        self.menu_instr.addAction(self.menu_instr_plotcurve)
-        self.menu_instr.addAction(self.menu_instr_connectcurve)
-        self.menu_instr.addAction(self.menu_instr_exporttoexcell)
-        
-        self.parent.setMenuBar(self)  # Add main menu in main window 
-        
-        # BLOCK creating ToolBar panel
-        self.fileToolBar = QtWidgets.QToolBar("File", self.parent)
-        self.fileToolBar.addAction(self.menu_instr_addwell)
-        self.fileToolBar.addAction(self.menu_instr_openfile)
-        self.fileToolBar.addAction(self.menu_instr_plotcurve)
-        self.fileToolBar.addAction(self.menu_instr_connectcurve)
-        self.fileToolBar.addAction(self.menu_instr_exporttoexcell)
-        self.parent.addToolBar(self.fileToolBar)
-        
-    pass
-
 class MainWindow(QtWidgets.QMainWindow):
     """ Creates the main application window for loading and visualizing the las file
     """
@@ -608,72 +331,44 @@ class MainWindow(QtWidgets.QMainWindow):
         print('MAINWINDOW INIT')
         
         self.las = None
-        self.icon_style = 'standard'  # TODO: get this parameter from settings.ini
-        self.database = DatabaseProject()  # создаем базу данных 
+        self.icon_style = 'standard' # TODO: get this parameter from settings.ini
         
-        self.menu = MenuInstruments(self) 
-
+        
+        
         # BLOCK to create a widget attached on the left, for the file system
-        self.dockProjectbrowser = QtWidgets.QDockWidget("Project browser", self)
-        #self.listWidget = FileSystemView()
-        self.listWidget = QtWidgets.QListWidget()
-        self.listWidget.installEventFilter(self)
-        self.dockProjectbrowser.setWidget(self.listWidget)
+        self.dockFilesystem = QtWidgets.QDockWidget("File system", self)
+        self.listWidget = FileSystemView() 
+        self.dockFilesystem.setWidget(self.listWidget) 
         self.setCentralWidget(QtWidgets.QTextEdit())
-        self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self.dockProjectbrowser)
-        ## self.dockProjectbrowser.setFloating(False)
+        self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self.dockFilesystem)
+        ## self.dockFilesystem.setFloating(False) # this need to floating panel
         ## setting the signals
-        #self.listWidget.tree.clicked.connect(self.docker_file_path)
-        
+        self.listWidget.tree.clicked.connect(self.docker_file_path)
         
         # BLOCK to create a widget with a list of curves attached on the left
-        self.dockCurveslist = QtWidgets.QDockWidget("Curves in well", self)
+        self.dockCurveslist = QtWidgets.QDockWidget("Curves in list", self)
         self.listCurveslist = QtWidgets.QTextEdit()  
         self.dockCurveslist.setWidget(self.listCurveslist)  
         self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self.dockCurveslist)
-        ## self.dockProjectbrowser.setFloating(False)
         
         # BLOCK to create central tables
-        centralWidget = QtWidgets.QMdiArea()
-        self.setCentralWidget(centralWidget)
         self.tabWidget = TabWidget()
-        subWindow_TabWidget = centralWidget.addSubWindow(self.tabWidget.tab_widget)
-        subWindow_TabWidget.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        subWindow_TabWidget.show()
+        self.setCentralWidget(self.tabWidget.tab_widget) # устанавливает центральный виджет
         
         # BLOCK to create progressBar 
         self.progressBar = QtWidgets.QProgressBar()
         self.statusBar().addPermanentWidget(self.progressBar)
         self.progressBar.hide()
         
-        # BLOCK create the necessary functions for curve processing
+        # BLOCK шьзщкештп the necessary functions for curve processing
         # This needeng to next updates
         # TODO: make features available after the beta release with a new interface
         ## self.load_settings()
         ## self.open_temp_file()  # запускает функцию для открытия временного файла и выборки необходимых данных для запроса
         ## self.open_las_file()  # создает соединение с БД
         ## self.table_fill()  # заполнение формы(таблицы) данными
-    
-    def eventFilter(self, source, event):
-        if (event.type() == QtCore.QEvent.ContextMenu and
-            source is self.listWidget):
-            menu = QtWidgets.QMenu()
-            iconOpen = self.style().standardIcon( QtWidgets.QStyle.SP_FileIcon )
-            _addwell = QtWidgets.QAction(iconOpen, 'Add one las to well')
-            menu.addAction(_addwell)
-            if menu.exec_(event.globalPos()):
-                item = source.itemAt(event.pos())
-                self.add_new_well(item.text())
-                print(item.text())
-            return True
-        return super(QtWidgets.QWidget, self.dockProjectbrowser).eventFilter(source, event)
-    
-    def add_new_well(self, item):
-        dialog_add_new_well = AddWellDialog(self.database, self)
-        dialog_add_new_well.setModal(True)
-        dialog_add_new_well.resize(400,200)
-        dialog_add_new_well.exec_()
         
+
         
     def docker_file_path(self, path):
         """Reading the path of selected files in FileSystemView
@@ -693,8 +388,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tabWidget.plot_widget.setHtml('<html><body>  </body></html>')
         
         # getting the file data from the selected element
-        name_file = self.listWidget.dirModel.data(path)  # название файла
-        file_path = self.listWidget.dirModel.filePath(path)  # полный путь к файлу
+        name_file = self.listWidget.dirModel.data(path)  # file name
+        file_path = self.listWidget.dirModel.filePath(path)  # the full path to the file
         if str(file_path).lower().endswith('.las'):
             file_path = file_path.replace('/', '\\')
             
@@ -710,9 +405,7 @@ class MainWindow(QtWidgets.QMainWindow):
     
     def menu_file_path(self):
         """This function is called after clicking the 'Browse' button and allows you to select the path to the las files"""
-        file_path = QtWidgets.QFileDialog.getOpenFileName(parent=self, 
-                                                        caption="Выбор las-файла...",  
-                                                        filter='Las-file (*.las);;Txt-file (*.txt);;All-files (*)')  # directory=os.path.dirname(__file__) 
+        file_path = QtWidgets.QFileDialog.getOpenFileName(parent=self, caption="Выбор las-файла...", directory=os.path.dirname(__file__), filter='Las-file (*.las);;Txt-file (*.txt);;All-files (*)')
         file_path = file_path[0]
         
         if file_path == '':
@@ -723,14 +416,14 @@ class MainWindow(QtWidgets.QMainWindow):
             self.setWindowTitle("Las-file processing" + ' || ' + file_path) 
             self.path_to_save = file_path
             
+            # Show progress bar
+            #self.progressBar.setFixedSize(self.geometry().width() - 120, 16) # опция если нужен фиксированный размер progress bar
+            self.progressBar.show()
+            self.statusBar().showMessage(f"loading file ...", 0)
+            self.progressBar.setRange(0, 0)
+            
         self.open_las_file(path_las_file=file_path)
-        
-        # Show progress bar
-        #self.progressBar.setFixedSize(self.geometry().width() - 120, 16) # опция если нужен фиксированный размер progress bar
-        self.progressBar.show()
-        self.statusBar().showMessage(f"loading file ...", 0)
-        self.progressBar.setRange(0, 0)
-        
+    
     
     def open_las_file(self, path_las_file):
         """Opens the las file and passes it on to the function to display it
@@ -772,9 +465,9 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # we install the table with the values of the curves in the data tab
         ## each element of the string must be wrapped in a QStandardItem and a string of these wrapped elements must be fed into the model
-        [self.tabWidget.tableview_model.appendRow(row) for row in values] # каждый элемент строки нужно обернуть в QStandardItem и в модель подавать строку из этих обернутых элементов
-        self.tabWidget.tableview_model.setHorizontalHeaderLabels(columnname)  # установить в модели названия колонок
-        self.tabWidget.table.setModel(self.tabWidget.tableview_model)  # установить модель в таблицу
+        [self.tabWidget.tableview_model.appendRow(row) for row in values] 
+        self.tabWidget.tableview_model.setHorizontalHeaderLabels(columnname)  # set in model name of columns
+        self.tabWidget.table.setModel(self.tabWidget.tableview_model)  # set model in table
 
         
         # set plotting curves in tab Viewer
@@ -849,22 +542,6 @@ if __name__=="__main__":
     # it is accessed via the qApp attribute from the QtWidgets module
     window = MainWindow()  # creates a window object as an instance of the Qwidget class
     window.setWindowTitle("Las-file processing")  # sets the text that will be displayed in the title of the Object Information window
-    
-    # Create splashscreen
-    splash_pix = QtGui.QPixmap('picture.png')
-    splash = QtWidgets.QSplashScreen(splash_pix, QtCore.Qt.WindowStaysOnTopHint)
-    # add fade to splashscreen 
-    opaqueness = 0.0
-    step = 0.1
-    splash.setWindowOpacity(opaqueness)
-    splash.show()
-    while opaqueness < 1:
-        splash.setWindowOpacity(opaqueness)
-        time.sleep(step) # Gradually appears
-        opaqueness+=step
-    time.sleep(1) # hold image on screen for a while
-    splash.close() # close the splash screen
-    
     
     # Creating a status bar 
     window.statusBar().showMessage("ready to load file") 
