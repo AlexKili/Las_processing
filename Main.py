@@ -18,10 +18,9 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 import lasio
 import io
 import csv
-import pandas as pd
 import sqlite3
 import time
-
+import pandas as pd
 # for import settings
 #import configparser
 
@@ -542,6 +541,255 @@ class LasLoadingThread(QtCore.QThread):
         return columnname, values
 
 
+class AddOneLasToWell(QtWidgets.QMainWindow):
+    """ Creates the main application window for loading and visualizing the las file
+    """
+    def __init__(self, name_well, parent):
+        QtWidgets.QWidget.__init__(self, parent)
+        print('MAINWINDOW INIT')
+        self.parent = parent
+        self.parent.setEnabled(False)
+        self.setEnabled(True)
+        
+        self.name_well = name_well
+        self.las = None
+        self.interactive = False
+        
+        # BLOCK to create a widget attached on the left, for the file system
+        self.dockFilesystem = QtWidgets.QDockWidget("File system", self)
+        self.listWidget = FileSystemView() 
+        self.dockFilesystem.setWidget(self.listWidget) 
+        self.setCentralWidget(QtWidgets.QTextEdit())
+        self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self.dockFilesystem)
+        ## self.dockFilesystem.setFloating(False) # this need to floating panel
+        ## setting the signals
+        self.listWidget.tree.clicked.connect(self.docker_file_path)
+        
+        
+        # BLOCK to create list of loading files
+        #self.droppingFileWidget = QtWidgets.QDockWidget("Перетащите файл:", self)
+        #self.droppingFileList = QtWidgets.QListWidget()
+        #self.droppingFileWidget.setWidget(self.droppingFileList)
+        #self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.droppingFileWidget)
+        
+        # BLOCK to create central tables
+        check_hbox = QtWidgets.QHBoxLayout()
+        interactive_mode = QtWidgets.QCheckBox('Interactive mode')
+        multifile_loading = QtWidgets.QCheckBox('Multifile selecting')
+        check_hbox.addWidget(interactive_mode)
+        check_hbox.addWidget(multifile_loading)
+        ## signals
+        interactive_mode.stateChanged.connect(self.interactive_on)
+            
+        
+        # BLOCK to set tab widget
+        # List of tab names
+        self.tab_name = ['Curves_List', 'Header',  'Viewer']
+        
+        ### creates an instance of the class that creates tabs (then they will be assigned the names of the tables selected on request)
+        self.tab_widget = QtWidgets.QTabWidget() 
+        ## self.tab_widget.setTabShape(1)  # makes tabs triangular if necessary
+        
+        # BLOCK to create a widget with a list of curves attached on the left
+        self.listCurveslist = QtWidgets.QTextEdit()  
+        self.tab_widget.addTab(self.listCurveslist, 'Curves_List')
+        
+        
+        # BLOCK for creating the Header tab
+        self.text_header = QtWidgets.QTextEdit()
+        self.tab_widget.addTab(self.text_header, 'Header')  # добавить вкладку 'Headers' с виджетом text
+        
+        ## Creates a plotting widget
+        self.plotcurvewindow = QtWidgets.QWidget(self, QtCore.Qt.Window)
+        ### creating a QWebEngineView view and installing html code into it
+        self.plot_widget = QtWebEngineWidgets.QWebEngineView()
+        ### creating a list of elements for the drop-down list (combonbox) of curves to display
+        self.combo_box = QtWidgets.QComboBox(self) 
+        self.combo_box.setGeometry(200, 150, 120, 30)
+        ### setting the signals for combo box
+        ### self.combo_box.currentIndexChanged.connect(self.change_curve)
+        
+        ## add widgets to vbox
+        vbox = QtWidgets.QVBoxLayout()
+        vbox.addWidget(self.combo_box)
+        vbox.addWidget(self.plot_widget)
+        
+        ## plot curves add to main layout
+        self.plotcurvewindow.setLayout(vbox)
+        self.tab_widget.addTab(self.plotcurvewindow, 'Viewer')
+        ### self.plotcurvewindow.show()
+        
+        
+        central_widget = QtWidgets.QWidget()
+        vbox_central = QtWidgets.QVBoxLayout()
+        
+        # BLOCK to set push button box
+        pushbutton_hbox = QtWidgets.QHBoxLayout()
+        apply_adding = QtWidgets.QPushButton('Apply')
+        close_dialog = QtWidgets.QPushButton('Close')
+        pushbutton_hbox.addWidget(apply_adding)
+        pushbutton_hbox.addWidget(close_dialog)
+        close_dialog.clicked.connect(self.closeEvent)
+        apply_adding.clicked.connect(self.add_one_las_to_well)
+        
+        vbox_central.addLayout(check_hbox)
+        vbox_central.addWidget(self.tab_widget)
+        vbox_central.addLayout(pushbutton_hbox)
+        central_widget.setLayout(vbox_central)
+        self.setCentralWidget(central_widget) # устанавливает центральный виджет
+        
+        
+        # BLOCK to create progressBar 
+        self.progressBar = QtWidgets.QProgressBar()
+        self.statusBar().addPermanentWidget(self.progressBar)
+        self.progressBar.hide()
+    
+    def closeEvent(self, event):
+        self.parent.setEnabled(True)
+        self.close()
+    
+    def add_one_las_to_well(self):
+        # Preparing data in las-files and creating 2 DataFrame for appending into DB 
+        gis_las = pd.DataFrame(columns = ['well_id', 'las_id', 'Filename', 'WellName', 'Folder'])
+        gis_curve = pd.DataFrame(columns = ['well_id', 'curve_id', 'las_id', 'wellname', 'name_curve', 'unit', 'data_curve', 
+                                            'depth_data', 'start', 'stop', 'step', 'head_las'])
+
+        # for connecting (sew) las-files
+        # Делаем новый DataFrame с заданными столбцами
+        df = pd.DataFrame(columns = ['well_id', 'WellName', 'Name_curve', 'Unit', 'Data_curve', 
+                                     'Depth_data', 'Start', 'Stop', 'Step'])
+        pass
+        
+    
+    
+    def interactive_on(self, state):
+        if state == 2:
+            self.interactive = True
+        elif state == 0:
+            self.interactive = False
+        
+    def docker_file_path(self, path):
+        """Reading the path of selected files in FileSystemView
+        
+        Args:
+            path (PyQt5.QtCore.QModelIndex object): index of object
+        
+        Returns:
+            none: none
+        """
+        if self.interactive is False:
+            return
+        
+        # clearing widgets in tabs
+        self.text_header.clear()
+        self.listCurveslist.clear()
+        self.combo_box.clear()
+        self.plot_widget.setHtml('<html><body>  </body></html>')
+        
+        # getting the file data from the selected element
+        name_file = self.listWidget.dirModel.data(path)  # file name
+        file_path = self.listWidget.dirModel.filePath(path)  # the full path to the file
+        if str(file_path).lower().endswith('.las'):
+            file_path = file_path.replace('/', '\\')
+            
+            self.open_las_file(path_las_file=file_path)
+        
+        # Show progress bar
+        ## self.progressBar.setFixedSize(self.geometry().width() - 120, 16) ## option if you need a fixed size progress bar
+        self.progressBar.show()
+        self.statusBar().showMessage(f"loading file {name_file}...", 0)
+        self.progressBar.setRange(0, 0)
+        
+        return
+    
+    
+    def open_las_file(self, path_las_file):
+        """Opens the las file and passes it on to the function to display it
+        
+        Args:
+            path_las_file (str): полный путь к файлу
+        
+        Returns:
+            Boolean: file opening status
+        """
+        # an attempt to open a las file, if it fails, a message will be displayed in the status bar
+        self.path_las_file = path_las_file
+        lasloadThread = LasLoadingThread(parent = self)
+        lasloadThread.start()
+        lasloadThread.state.connect(self.state_reading)
+        lasloadThread.result.connect(self.result_reading)
+    
+    def state_reading(self, state):
+        self.state = state
+        if self.state is False:
+            QtWidgets.QMessageBox.information(self, 
+                                            'Information', 
+                                            'Please open las-file',
+                                            buttons=QtWidgets.QMessageBox.Ok, 
+                                            defaultButton=QtWidgets.QMessageBox.Ok)
+    
+    def result_reading(self, list_las_data):
+        if self.state is True:
+            #self.view_lasdf(self.las)
+            self.view_curves(list_las_data)
+            return True
+        
+    def view_curves(self, list_las_data):
+        self.las, las_header, columnname, values = list_las_data
+        
+        # installing the header in the header tab
+        self.text_header.setText(str(las_header))
+        
+        
+        # set plotting curves in tab Viewer
+        ## befor clearing combo box
+        self.combo_box.clear()
+        ## creating list of elements for combobox with name of curves to plotting
+        self.dict_curves = {element['mnemonic']:element['unit'] for element in self.las.curves} 
+        if 'DEPT' in self.dict_curves:
+            self.depth_unit = self.dict_curves['DEPT']
+            del self.dict_curves['DEPT']
+        elif 'DEPTH' in self.dict_curves:
+            self.depth_unit = self.dict_curves['DEPTH']
+            del self.dict_curves['DEPTH']
+        
+        self.listCurveslist.setText('\n'.join(list(self.dict_curves.keys())))
+        
+            
+        self.combo_box.addItems(list(self.dict_curves.keys()))
+        self.combo_box.currentIndexChanged.connect(self.change_curve_on_tab)
+        self.change_curve_on_tab(0)
+        self.statusBar().showMessage("completed", 0)
+        self.progressBar.hide()
+        
+    
+    def change_curve_on_tab(self, string):
+        """string - index of selected element from signal"""
+        name_curve = list(self.dict_curves.keys())[string]
+        unit = self.dict_curves[name_curve]
+        if name_curve not in self.las.df().columns:
+            return
+        self.las.df()[name_curve]
+        # create the plotly figure
+        fig = Figure(Scatter(x=self.las.df()[name_curve], y=self.las.df().index))
+        fig.update_layout(title=str(name_curve),
+                            xaxis_title=str(name_curve)+', '+str(unit),
+                            yaxis_title=f"Depth, {self.depth_unit}",
+                            yaxis = dict(autorange="reversed"),
+                            margin=dict(l=0, r=0, t=30, b=0),
+                            template="plotly_white",
+                            paper_bgcolor='white', 
+                            plot_bgcolor='white')
+        
+        # we create html code of the figure
+        html = '<html><body>'
+        html += plot(fig, output_type='div', include_plotlyjs='cdn')
+        html += '</body></html>'
+        self.plot_widget.setHtml(html)
+        return
+
+
+
 class MenuInstruments(QtWidgets.QMenuBar):
     def __init__(self, parent):
         super().__init__()
@@ -659,16 +907,29 @@ class MainWindow(QtWidgets.QMainWindow):
             source is self.listWidget):
             menu = QtWidgets.QMenu()
             iconOpen = self.style().standardIcon( QtWidgets.QStyle.SP_FileIcon )
-            _addwell = QtWidgets.QAction(iconOpen, 'Add one las to well')
-            menu.addAction(_addwell)
+            _addonelas = QtWidgets.QAction(iconOpen, 'Add one las to well')
+            _addonelas.triggered.connect(self.add_one_las)
+            self.item = source.itemAt(event.pos()).text()
+            menu.addAction(_addonelas)
+            
             if menu.exec_(event.globalPos()):
                 item = source.itemAt(event.pos())
-                self.add_new_well(item.text())
-                print(item.text())
+            #    #self.add_one_las(item.text())
+            #    #print(item.text())
+            #    self.item = item.text()
             return True
         return super(QtWidgets.QWidget, self.dockProjectbrowser).eventFilter(source, event)
     
-    def add_new_well(self, item):
+    def add_one_las(self, item):
+        print('Add well', self.item)
+        dialog_add_new_well = AddOneLasToWell(item, self)
+        #dialog_add_new_well.setModal(True)
+        #dialog_add_new_well.resize(400,200)
+        #dialog_add_new_well.exec_()
+        dialog_add_new_well.show()
+    
+    
+    def add_new_well(self):
         dialog_add_new_well = AddWellDialog(self.database, self)
         dialog_add_new_well.setModal(True)
         dialog_add_new_well.resize(400,200)
