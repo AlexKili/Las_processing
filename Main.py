@@ -233,16 +233,16 @@ class DatabaseProject():
         self.cur.execute('''CREATE TABLE IF NOT EXISTS Wells_main (
                             well_id INTEGER PRIMARY KEY,
                             name_well TEXT NOT NULL,
-                            UWI FLOAT,
+                            uwi FLOAT,
                             coordinate_x FLOAT,
                             coordinate_y FLOAT,
                             type_altitude TEXT,
                             elevation_altitude FLOAT,
                             bottommd FLOAT,
-                            Well symbol INTEGER,
+                            well_symbol INTEGER,
                             year_drilling INTEGER,
-                            Spud_date TEXT, 
-                            Cost FLOAT
+                            spud_date TEXT, 
+                            cost FLOAT
                             )''')
         self.conn.commit()
         
@@ -251,8 +251,8 @@ class DatabaseProject():
                             well_id INTEGER NOT NULL,
                             las_id INTEGER PRIMARY KEY,
                             name_well TEXT NOT NULL,
-                            Filename TEXT,
-                            Folder TEXT,
+                            filename TEXT,
+                            folder TEXT,
                             head_las TEXT
                             )''')
         self.conn.commit()
@@ -709,46 +709,9 @@ class AddOneLasToWell(QtWidgets.QMainWindow):
         
         self.las_id = self.autoincrement_id_calculate('Wells_gis_las', 'las_id')
         
-        
-        # load las to database
-        self.cur.execute('''SELECT TABLE IF NOT EXISTS Wells_gis_las (
-                            well_id INTEGER NOT NULL,
-                            las_id INTEGER PRIMARY KEY,
-                            name_well TEXT NOT NULL,
-                            Filename TEXT,
-                            Folder TEXT,
-                            head_las TEXT
-                            )''')
-        self.conn.commit()
-        
-        # Создаем таблицу Wells_gis_curve
-        self.cur.execute('''SELECT TABLE IF NOT EXISTS Wells_gis_curve (
-                            well_id INTEGER NOT NULL,
-                            curve_id INTEGER PRIMARY KEY,
-                            las_id INTEGER,
-                            name_well TEXT NOT NULL,
-                            name_curve TEXT,
-                            unit TEXT,
-                            data_curve TEXT,
-                            depth_data TEXT,
-                            start REAL,
-                            stop REAL,
-                            step REAL
-                            )''')
-        self.conn.commit()
-        
-        
-        
-        
-        self.las_id = self.las_id_calculate()
         self.database.cur.execute("""INSERT INTO Wells_gis_las 
-                                        (well_id,
-                                        las_id,
-                                        name_well,
-                                        Filename,
-                                        Folder,
-                                        head_las) 
-                                    VALUES (?, ?, ?, ?, ?, ?)""", 
+                                        (well_id, las_id, name_well, filename, folder, head_las) 
+                                    VALUES (?,    ?,      ?,         ?,        ?,      ?)""", 
                                         (self.well_id,
                                         self.name_well,
                                         self.uwi,
@@ -758,10 +721,27 @@ class AddOneLasToWell(QtWidgets.QMainWindow):
                                         self.elevation_altitude,
                                         self.bottommd))
         self.database.conn.commit()
+        
+        
+        # Создаем таблицу Wells_gis_curve
+        self.database.cur.execute("""INSERT INTO Wells_gis_las 
+                                (well_id, curve_id, las_id, name_well, name_curve, 
+                                unit, data_curve, depth_data, start, stop, step) 
+                            VALUES (?,    ?,        ?,      ?,         ?, 
+                                ?,    ?,          ?,          ?,     ?,    ?)""", 
+                                (self.well_id,
+                                self.name_well,
+                                self.uwi,
+                                self.coordinate_x,
+                                self.coordinate_y,
+                                self.type_altitude,
+                                self.elevation_altitude,
+                                self.bottommd))
+        self.database.conn.commit()
+        
+        
         self.parent.statusBar().showMessage("Add well success")
         self.parent.listWidget.addItem(f"{str(self.name_well)}  ||  id{str(self.well_id)}")
-        self.close()
-        
         self.close()
         
         
