@@ -182,9 +182,9 @@ class AddWellDialog(QtWidgets.QDialog):
     
     def well_id_calculate(self):
         self.database.cur.execute("""SELECT well_id
-                            FROM Wells_main 
-                            ORDER BY well_id DESC
-                            LIMIT 1""")
+                                        FROM Wells_main 
+                                        ORDER BY well_id DESC
+                                        LIMIT 1""")
         result = self.database.cur.fetchall()
         print(result)
         if result == []:
@@ -197,26 +197,26 @@ class AddWellDialog(QtWidgets.QDialog):
     def apply_addwell(self):
         self.well_id = self.well_id_calculate()
         self.database.cur.execute("""INSERT INTO Wells_main 
-                                    (well_id,
-                                    name_well,
-                                    UWI,
-                                    coordinate_x,
-                                    coordinate_y,
-                                    type_altitude,
-                                    elevation_altitude,
-                                    bottommd) 
-                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", 
-                                    (self.well_id,
-                                    self.name_well,
-                                    self.uwi,
-                                    self.coordinate_x,
-                                    self.coordinate_y,
-                                    self.type_altitude,
-                                    self.elevation_altitude,
-                                    self.bottommd))
+                                        (well_id,
+                                        name_well,
+                                        UWI,
+                                        coordinate_x,
+                                        coordinate_y,
+                                        type_altitude,
+                                        elevation_altitude,
+                                        bottommd) 
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""", 
+                                        (self.well_id,
+                                        self.name_well,
+                                        self.uwi,
+                                        self.coordinate_x,
+                                        self.coordinate_y,
+                                        self.type_altitude,
+                                        self.elevation_altitude,
+                                        self.bottommd))
         self.database.conn.commit()
         self.parent.statusBar().showMessage("Add well success")
-        self.parent.listWidget.addItem(str(self.name_well))
+        self.parent.listWidget.addItem(f"{str(self.name_well)}  ||  id{str(self.well_id)}")
         self.close()
     
 
@@ -229,36 +229,65 @@ class DatabaseProject():
         path_to_db = ':memory:'
         self.conn = sqlite3.connect(path_to_db)
         self.cur = self.conn.cursor()
-        # Создаем таблицу Users
+        # Создаем таблицу Wells_main
         self.cur.execute('''CREATE TABLE IF NOT EXISTS Wells_main (
-                    well_id INTEGER PRIMARY KEY,
-                    name_well TEXT NOT NULL,
-                    UWI FLOAT,
-                    coordinate_x FLOAT,
-                    coordinate_y FLOAT,
-                    type_altitude TEXT,
-                    elevation_altitude FLOAT,
-                    bottommd FLOAT,
-                    Well symbol INTEGER,
-                    year_drilling INTEGER,
-                    Spud_date TEXT, 
-                    Cost FLOAT
-                    )
-                    ''')
+                            well_id INTEGER PRIMARY KEY,
+                            name_well TEXT NOT NULL,
+                            UWI FLOAT,
+                            coordinate_x FLOAT,
+                            coordinate_y FLOAT,
+                            type_altitude TEXT,
+                            elevation_altitude FLOAT,
+                            bottommd FLOAT,
+                            Well symbol INTEGER,
+                            year_drilling INTEGER,
+                            Spud_date TEXT, 
+                            Cost FLOAT
+                            )''')
         self.conn.commit()
         
-
-        #Simulation name
-        #Simulation export date
-        #Operator
-        #TWT auto
-        #Uncertainty ground level
-        #Uncertainty radius
-        #Uncertainty standard deviation factor
-        #FLOAT,Ambient temperature
-        #FLOAT,Heat transfer coefficient
-        #Max zone
-    
+        # Создаем таблицу Wells_gis_las
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS Wells_gis_las (
+                            well_id INTEGER NOT NULL,
+                            las_id INTEGER PRIMARY KEY,
+                            name_well TEXT NOT NULL,
+                            Filename TEXT,
+                            Folder TEXT,
+                            head_las TEXT
+                            )''')
+        self.conn.commit()
+        
+        # Создаем таблицу Wells_gis_curve
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS Wells_gis_curve (
+                            well_id INTEGER NOT NULL,
+                            curve_id INTEGER PRIMARY KEY,
+                            las_id INTEGER,
+                            name_well TEXT NOT NULL,
+                            name_curve TEXT,
+                            unit TEXT,
+                            data_curve TEXT,
+                            depth_data TEXT,
+                            start REAL,
+                            stop REAL,
+                            step REAL
+                            )''')
+        self.conn.commit()
+        
+        # Создаем таблицу Wells_gis_sew
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS Wells_gis_sew (
+                            well_id INTEGER NOT NULL,
+                            sewcurve_id INTEGER PRIMARY KEY,
+                            name_well TEXT NOT NULL,
+                            name_curve TEXT,
+                            unit TEXT,
+                            data_curve TEXT,
+                            depth_data TEXT,
+                            start REAL,
+                            stop REAL,
+                            step REAL
+                            )''')
+        self.conn.commit()
+        
         # Сохраняем изменения и закрываем соединение
         def close_connection(self):
             self.conn.close()
@@ -544,14 +573,16 @@ class LasLoadingThread(QtCore.QThread):
 class AddOneLasToWell(QtWidgets.QMainWindow):
     """ Creates the main application window for loading and visualizing the las file
     """
-    def __init__(self, name_well, parent):
+    def __init__(self, database, name_well, parent):
         QtWidgets.QWidget.__init__(self, parent)
         print('MAINWINDOW INIT')
         self.parent = parent
         self.parent.setEnabled(False)
         self.setEnabled(True)
         
+        self.database = database
         self.name_well = name_well
+        self.path = None
         self.las = None
         self.interactive = False
         
@@ -632,6 +663,7 @@ class AddOneLasToWell(QtWidgets.QMainWindow):
         close_dialog.clicked.connect(self.closeEvent)
         apply_adding.clicked.connect(self.add_one_las_to_well)
         
+        # Add widgets to vbox layout
         vbox_central.addLayout(check_hbox)
         vbox_central.addWidget(self.tab_widget)
         vbox_central.addLayout(pushbutton_hbox)
@@ -648,26 +680,101 @@ class AddOneLasToWell(QtWidgets.QMainWindow):
         self.parent.setEnabled(True)
         self.close()
     
+    def autoincrement_id_calculate(self, tablename, idname):
+        """Autoincrement _id function. 
+            Function get maximum _id from choosen table in database and increment that at 1"""
+        self.database.cur.execute(f"""SELECT {idname}
+                                        FROM {tablename} 
+                                        ORDER BY {idname} DESC
+                                        LIMIT 1""")
+        result = self.database.cur.fetchall()
+        print(result)
+        if result == []:
+            result = 1
+        else:
+            result = result[0][0]  # select the result of the first row of the first column
+            result += 1
+        return result
+    
     def add_one_las_to_well(self):
-        # Preparing data in las-files and creating 2 DataFrame for appending into DB 
-        gis_las = pd.DataFrame(columns = ['well_id', 'las_id', 'Filename', 'WellName', 'Folder'])
-        gis_curve = pd.DataFrame(columns = ['well_id', 'curve_id', 'las_id', 'wellname', 'name_curve', 'unit', 'data_curve', 
-                                            'depth_data', 'start', 'stop', 'step', 'head_las'])
-
-        # for connecting (sew) las-files
-        # Делаем новый DataFrame с заданными столбцами
-        df = pd.DataFrame(columns = ['well_id', 'WellName', 'Name_curve', 'Unit', 'Data_curve', 
-                                     'Depth_data', 'Start', 'Stop', 'Step'])
-        pass
+        """Add las to current well into database"""
+        self.well_id = int(self.name_well.split("id")[1])
+        self.setEnabled(False)
+        # perform checks for exist opened las and path  
+        if self.las is None:
+            if self.path is not None:
+                print('Path: ', self.path)
+                # open las if it not load after
+                self.open_las_file(path_las_file=self.path)
         
-    
-    
+        self.las_id = self.autoincrement_id_calculate('Wells_gis_las', 'las_id')
+        
+        
+        # load las to database
+        self.cur.execute('''SELECT TABLE IF NOT EXISTS Wells_gis_las (
+                            well_id INTEGER NOT NULL,
+                            las_id INTEGER PRIMARY KEY,
+                            name_well TEXT NOT NULL,
+                            Filename TEXT,
+                            Folder TEXT,
+                            head_las TEXT
+                            )''')
+        self.conn.commit()
+        
+        # Создаем таблицу Wells_gis_curve
+        self.cur.execute('''SELECT TABLE IF NOT EXISTS Wells_gis_curve (
+                            well_id INTEGER NOT NULL,
+                            curve_id INTEGER PRIMARY KEY,
+                            las_id INTEGER,
+                            name_well TEXT NOT NULL,
+                            name_curve TEXT,
+                            unit TEXT,
+                            data_curve TEXT,
+                            depth_data TEXT,
+                            start REAL,
+                            stop REAL,
+                            step REAL
+                            )''')
+        self.conn.commit()
+        
+        
+        
+        
+        self.las_id = self.las_id_calculate()
+        self.database.cur.execute("""INSERT INTO Wells_gis_las 
+                                        (well_id,
+                                        las_id,
+                                        name_well,
+                                        Filename,
+                                        Folder,
+                                        head_las) 
+                                    VALUES (?, ?, ?, ?, ?, ?)""", 
+                                        (self.well_id,
+                                        self.name_well,
+                                        self.uwi,
+                                        self.coordinate_x,
+                                        self.coordinate_y,
+                                        self.type_altitude,
+                                        self.elevation_altitude,
+                                        self.bottommd))
+        self.database.conn.commit()
+        self.parent.statusBar().showMessage("Add well success")
+        self.parent.listWidget.addItem(f"{str(self.name_well)}  ||  id{str(self.well_id)}")
+        self.close()
+        
+        self.close()
+        
+        
+        
+        
+        
     def interactive_on(self, state):
+        # set status of interactive on to True or False
         if state == 2:
             self.interactive = True
         elif state == 0:
             self.interactive = False
-        
+    
     def docker_file_path(self, path):
         """Reading the path of selected files in FileSystemView
         
@@ -677,6 +784,9 @@ class AddOneLasToWell(QtWidgets.QMainWindow):
         Returns:
             none: none
         """
+        self.path = self.listWidget.dirModel.filePath(path)
+        
+        # check the interactive status and skipped next code
         if self.interactive is False:
             return
         
@@ -691,7 +801,6 @@ class AddOneLasToWell(QtWidgets.QMainWindow):
         file_path = self.listWidget.dirModel.filePath(path)  # the full path to the file
         if str(file_path).lower().endswith('.las'):
             file_path = file_path.replace('/', '\\')
-            
             self.open_las_file(path_las_file=file_path)
         
         # Show progress bar
@@ -737,9 +846,11 @@ class AddOneLasToWell(QtWidgets.QMainWindow):
     def view_curves(self, list_las_data):
         self.las, las_header, columnname, values = list_las_data
         
+        if self.interactive is False:
+            return
+        
         # installing the header in the header tab
         self.text_header.setText(str(las_header))
-        
         
         # set plotting curves in tab Viewer
         ## befor clearing combo box
@@ -755,7 +866,7 @@ class AddOneLasToWell(QtWidgets.QMainWindow):
         
         self.listCurveslist.setText('\n'.join(list(self.dict_curves.keys())))
         
-            
+        
         self.combo_box.addItems(list(self.dict_curves.keys()))
         self.combo_box.currentIndexChanged.connect(self.change_curve_on_tab)
         self.change_curve_on_tab(0)
@@ -787,7 +898,6 @@ class AddOneLasToWell(QtWidgets.QMainWindow):
         html += '</body></html>'
         self.plot_widget.setHtml(html)
         return
-
 
 
 class MenuInstruments(QtWidgets.QMenuBar):
@@ -909,7 +1019,8 @@ class MainWindow(QtWidgets.QMainWindow):
             iconOpen = self.style().standardIcon( QtWidgets.QStyle.SP_FileIcon )
             _addonelas = QtWidgets.QAction(iconOpen, 'Add one las to well')
             _addonelas.triggered.connect(self.add_one_las)
-            self.item = source.itemAt(event.pos()).text()
+            if source.itemAt(event.pos()) is not None:
+                self.item = source.itemAt(event.pos()).text()
             menu.addAction(_addonelas)
             
             if menu.exec_(event.globalPos()):
@@ -920,14 +1031,11 @@ class MainWindow(QtWidgets.QMainWindow):
             return True
         return super(QtWidgets.QWidget, self.dockProjectbrowser).eventFilter(source, event)
     
-    def add_one_las(self, item):
+    def add_one_las(self):
         print('Add well', self.item)
-        dialog_add_new_well = AddOneLasToWell(item, self)
-        #dialog_add_new_well.setModal(True)
-        #dialog_add_new_well.resize(400,200)
-        #dialog_add_new_well.exec_()
-        dialog_add_new_well.show()
-    
+        dialog_add_one_las = AddOneLasToWell(self.database, self.item, self)
+        dialog_add_one_las.setWindowTitle(f'Add las to well {self.item}')
+        dialog_add_one_las.show()
     
     def add_new_well(self):
         dialog_add_new_well = AddWellDialog(self.database, self)
